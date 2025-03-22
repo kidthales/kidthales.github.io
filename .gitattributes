@@ -1,0 +1,12 @@
+* text=auto eol=lf
+
+*.html text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.sh text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+package-lock.json text eol=lf merge=ours
+
+*.png binary
