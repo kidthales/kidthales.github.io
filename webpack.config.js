@@ -99,6 +99,12 @@ module.exports = async (env, args) => {
       })
     ].filter(Boolean),
     devServer: {
+      client: {
+        overlay: {
+          warnings: false
+        },
+        progress: true
+      },
       hot: false,
       port: 4200,
       static: {

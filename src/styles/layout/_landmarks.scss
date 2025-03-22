@@ -1,0 +1,21 @@
+@use 'bootstrap/scss/bootstrap-grid';
+
+body {
+  width: 100%;
+  max-height: 100vh;
+  min-height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+
+  > header,
+  > footer {
+    @extend .container-fluid;
+  }
+
+  > main {
+    @extend .container;
+    display: block;
+    flex-grow: 1;
+  }
+}

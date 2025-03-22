@@ -1,0 +1,4 @@
+@use 'sass:map';
+
+// Prefix for CSS variables
+$css-var-prefix: '--kt-' !default; // Must start with "--"
