@@ -1,0 +1,111 @@
+@use 'sass:map';
+@use '../../colors/qualitative/pale' as pale;
+@use '../../colors/qualitative/dark' as dark;
+@use '../../settings' as *;
+
+/**
+ * Colors
+ */
+
+$_schemes: (
+  light: (
+    bg: #fff,
+    bg-grey: pale.$grey,
+    bg-blue: pale.$blue,
+    bg-cyan: pale.$cyan,
+    bg-green: pale.$green,
+    bg-yellow: pale.$yellow,
+    bg-red: pale.$red,
+    fg: #000,
+    fg-grey: dark.$grey,
+    fg-blue: dark.$blue,
+    fg-cyan: dark.$cyan,
+    fg-green: dark.$green,
+    fg-yellow: dark.$yellow,
+    fg-red: dark.$red
+  ),
+  dark: (
+    bg: #000,
+    bg-grey: dark.$grey,
+    bg-blue: dark.$blue,
+    bg-cyan: dark.$cyan,
+    bg-green: dark.$green,
+    bg-yellow: dark.$yellow,
+    bg-red: dark.$red,
+    fg: #fff,
+    fg-grey: pale.$grey,
+    fg-blue: pale.$blue,
+    fg-cyan: pale.$cyan,
+    fg-green: pale.$green,
+    fg-yellow: pale.$yellow,
+    fg-red: pale.$red
+  )
+);
+
+@function _get($name, $scheme) {
+  @return map.get(map.get($_schemes, $scheme), $name);
+}
+
+@mixin theme($scheme) {
+  color-scheme: $scheme;
+  #{$css-var-prefix}background-color: _get(bg, $scheme);
+
+  // Text color
+  #{$css-var-prefix}color: _get(fg, $scheme);
+
+  // Text selection color
+  // TODO...
+  #{$css-var-prefix}text-selection-color: _get(bg-cyan, $scheme);
+
+  // Muted colors
+  #{$css-var-prefix}muted-color: _get(fg-grey, $scheme);
+  #{$css-var-prefix}muted-background-color: _get(bg-grey, $scheme);
+  #{$css-var-prefix}muted-border-color: var(#{$css-var-prefix}muted-background-color);
+
+  // Primary colors
+  // TODO...
+  #{$css-var-prefix}primary: _get(fg-blue, $scheme);
+  #{$css-var-prefix}primary-background: _get(bg-blue, $scheme);
+  #{$css-var-prefix}primary-border: var(#{$css-var-prefix}primary-background);
+  //#{$css-var-prefix}primary-underline: theme-colors.get("primary-underline", "light");
+  //#{$css-var-prefix}primary-hover: theme-colors.get("primary-hover", "light");
+  //#{$css-var-prefix}primary-hover-background: theme-colors.get("primary-hover-background", "light");
+  //#{$css-var-prefix}primary-hover-border: var(#{$css-var-prefix}primary-hover-background);
+  //#{$css-var-prefix}primary-hover-underline: var(#{$css-var-prefix}primary-hover);
+  //#{$css-var-prefix}primary-focus: theme-colors.get("primary-focus", "light");
+  //#{$css-var-prefix}primary-inverse: theme-colors.get("primary-inverse", "light");
+
+  // Secondary colors
+  // TODO...
+  #{$css-var-prefix}secondary: _get(fg-cyan, $scheme);
+  #{$css-var-prefix}secondary-background: _get(bg-cyan, $scheme);
+  #{$css-var-prefix}secondary-border: var(#{$css-var-prefix}secondary-background);
+  //#{$css-var-prefix}secondary-underline: #{rgba($slate-550, 0.5)};
+  //#{$css-var-prefix}secondary-hover: #{$slate-650};
+  //#{$css-var-prefix}secondary-hover-background: #{$slate-650};
+  //#{$css-var-prefix}secondary-hover-border: var(#{$css-var-prefix}secondary-hover-background);
+  //#{$css-var-prefix}secondary-hover-underline: var(#{$css-var-prefix}secondary-hover);
+  //#{$css-var-prefix}secondary-focus: #{rgba($slate-550, 0.25)};
+  //#{$css-var-prefix}secondary-inverse: #{$white};
+
+  // Typography
+  // Headings colors
+  #{$css-var-prefix}h1-color: var(#{$css-var-prefix}color);
+  #{$css-var-prefix}h2-color: var(#{$css-var-prefix}color);
+  #{$css-var-prefix}h3-color: var(#{$css-var-prefix}color);
+  #{$css-var-prefix}h4-color: var(#{$css-var-prefix}muted-color);
+  #{$css-var-prefix}h5-color: var(#{$css-var-prefix}muted-color);
+  #{$css-var-prefix}h6-color: var(#{$css-var-prefix}muted-color);
+
+  // Highlighted text (<mark>)
+  #{$css-var-prefix}mark-background-color: var(#{$css-var-prefix}color);
+  #{$css-var-prefix}mark-color: var(#{$css-var-prefix}background-color);
+
+  // Inserted (<ins>) & Deleted (<del>)
+  #{$css-var-prefix}ins-color: _get(fg-green, $scheme);
+  #{$css-var-prefix}del-color: _get(fg-red, $scheme);
+
+  // Blockquote
+  #{$css-var-prefix}blockquote-border-color: var(#{$css-var-prefix}muted-border-color);
+  #{$css-var-prefix}blockquote-footer-color: var(#{$css-var-prefix}muted-color);
+}

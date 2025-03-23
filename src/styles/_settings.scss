@@ -1,4 +1,66 @@
 @use 'sass:map';
+@use 'bootstrap/scss/bootstrap-grid' as bsg;
+
+/**
+ * Settings
+ */
+
+// Settings based on :
+// - pico.css v2.1.1 | MIT License | github.com/picocss/pico
+// ––––––––––––––––––––
 
 // Prefix for CSS variables
 $css-var-prefix: '--kt-' !default; // Must start with "--"
+
+// Breakpoints, viewports, and font sizes
+$breakpoints: () !default;
+$breakpoints: map.deep-merge(
+  (
+    // Small (landscape phones)
+    sm: (
+        // 576px
+        breakpoint: map.get(bsg.$grid-breakpoints, sm),
+        // 540px
+        viewport: map.get(bsg.$container-max-widths, sm),
+        // 17px
+        font-size: 106.25%
+      ),
+    // Medium (tablets)
+    md: (
+        // 768px
+        breakpoint: map.get(bsg.$grid-breakpoints, md),
+        // 720px
+        viewport: map.get(bsg.$container-max-widths, md),
+        // 18px
+        font-size: 112.5%
+      ),
+    // Large
+    lg: (
+        // 992px
+        breakpoint: map.get(bsg.$grid-breakpoints, lg),
+        // 960px
+        viewport: map.get(bsg.$container-max-widths, lg),
+        // 19px
+        font-size: 118.75%
+      ),
+    // Extra large
+    xl: (
+        // 1200px
+        breakpoint: map.get(bsg.$grid-breakpoints, xl),
+        // 1140px
+        viewport: map.get(bsg.$container-max-widths, xl),
+        // 20px
+        font-size: 125%
+      ),
+    // Extra extra large
+    xxl: (
+        // 1400px
+        breakpoint: map.get(bsg.$grid-breakpoints, xxl),
+        // 1320px
+        viewport: map.get(bsg.$container-max-widths, xxl),
+        // 21px
+        font-size: 131.25%
+      )
+  ),
+  $breakpoints
+);

@@ -1,0 +1,13 @@
+@use '../settings' as *;
+
+/**
+ * Section
+ */
+
+// Section based on :
+// - pico.css v2.1.1 | MIT License | github.com/picocss/pico
+// ––––––––––––––––––––
+
+section {
+  margin-bottom: var(#{$css-var-prefix}block-spacing-vertical);
+}

@@ -1,0 +1,6 @@
+@use 'colors';
+
+// Dark theme
+@mixin theme {
+  @include colors.theme(dark);
+}

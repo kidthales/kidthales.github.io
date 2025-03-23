@@ -61,7 +61,10 @@ module.exports = async (env, args) => {
             {
               loader: 'sass-loader',
               options: {
-                sourceMap: !isProd
+                sourceMap: !isProd,
+                sassOptions: {
+                  quietDeps: true
+                }
               }
             }
           ]
@@ -84,7 +87,7 @@ module.exports = async (env, args) => {
       !isDevServer ? new CleanWebpackPlugin({ cleanOnceBeforeBuildPatterns: ['**/*'] }) : undefined,
       isProd
         ? new MiniCssExtractPlugin({
-            filename: `_build/${isProd ? '.min' : ''}.css`,
+            filename: `_build/app${isProd ? '.min' : ''}.css`,
             chunkFilename: `_build/chunks/[id].[contenthash].css`
           })
         : undefined,
@@ -102,8 +105,7 @@ module.exports = async (env, args) => {
       client: {
         overlay: {
           warnings: false
-        },
-        progress: true
+        }
       },
       hot: false,
       port: 4200,

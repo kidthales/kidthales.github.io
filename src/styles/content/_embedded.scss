@@ -1,11 +1,50 @@
-/* https://www.joshwcomeau.com/css/custom-css-reset/ */
+/**
+ * Embedded content
+ */
 
-/* 5. Improve media defaults */
-img,
-picture,
-video,
-canvas,
-svg {
-  display: block;
-  max-width: 100%;
+// Embedded based on :
+// - normalize.css v8.0.1 | MIT License | github.com/necolas/normalize.css
+// - sanitize.css v13.0.0 | CC0 1.0 Universal | github.com/csstools/sanitize.css
+// - pico.css v2.1.1 | MIT License | github.com/picocss/pico
+// ––––––––––––––––––––
+
+// Change the alignment on media elements in all browsers (opinionated)
+:where(audio, canvas, iframe, img, svg, video) {
+  vertical-align: middle;
+}
+
+// Add the correct display in IE 9-
+audio,
+video {
+  display: inline-block;
+}
+
+// Add the correct display in iOS 4-7
+audio:not([controls]) {
+  display: none;
+  height: 0;
+}
+
+// Remove the border on iframes in all browsers (opinionated)
+:where(iframe) {
+  border-style: none;
+}
+
+// 1. Remove the border on images inside links in IE 10.
+// 2. Responsive by default
+img {
+  max-width: 100%; // 2
+  height: auto; // 2
+  border-style: none; // 1
+}
+
+// Change the fill color to match the text color in all browsers (opinionated)
+:where(svg:not([fill])) {
+  fill: currentColor;
+}
+
+// Hide the overflow in IE
+svg:not(:root),
+svg:not(:host) {
+  overflow: hidden;
 }
