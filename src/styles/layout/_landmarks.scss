@@ -55,6 +55,16 @@ body {
     background-color: var(#{$css-var-prefix}muted-background-color);
   }
 
+  > header {
+    a[data-action='theme#toggle'] {
+      color: var(#{$css-var-prefix}secondary);
+
+      &::after {
+        content: var(#{$css-var-prefix}theme-toggle-after-content);
+      }
+    }
+  }
+
   > main {
     flex-grow: 1;
 

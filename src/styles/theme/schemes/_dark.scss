@@ -1,6 +1,16 @@
+@use '../../settings' as *;
 @use 'colors';
+
+/**
+ * Dark
+ */
+
+// Dark based on :
+// - pico.css v2.1.1 | MIT License | github.com/picocss/pico
+// ––––––––––––––––––––
 
 // Dark theme
 @mixin theme {
   @include colors.theme(dark);
+  #{$css-var-prefix}theme-toggle-after-content: 'to light mode';
 }

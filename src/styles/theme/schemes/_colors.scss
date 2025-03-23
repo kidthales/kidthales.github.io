@@ -7,6 +7,10 @@
  * Colors
  */
 
+// Colors based on :
+// - pico.css v2.1.1 | MIT License | github.com/picocss/pico
+// ––––––––––––––––––––
+
 $_schemes: (
   light: (
     bg: #fff,
@@ -54,7 +58,6 @@ $_schemes: (
   #{$css-var-prefix}color: _get(fg, $scheme);
 
   // Text selection color
-  // TODO...
   #{$css-var-prefix}text-selection-color: _get(bg-cyan, $scheme);
 
   // Muted colors
