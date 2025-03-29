@@ -99,6 +99,11 @@ module.exports = async (env, args) => {
       new HtmlWebpackPlugin({
         filename: 'index.html',
         template: resolve(__dirname, 'content', 'index.ejs')
+      }),
+      new HtmlWebpackPlugin({
+        filename: '404.html',
+        template: resolve(__dirname, 'content', '404.ejs'),
+        meta: { robots: 'noindex' }
       })
     ].filter(Boolean),
     devServer: {
