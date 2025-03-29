@@ -17,20 +17,25 @@ module.exports = async (env, args) => {
     entry: resolve(__dirname, 'src', 'app.ts'),
     output: {
       path: distPath,
-      filename: `_build/[name]${isProd ? '.min' : ''}.js`,
-      chunkFilename: '_build/chunks/[id].[contenthash].js',
-      assetModuleFilename: '_build/asset-modules/[hash][ext][query]'
+      filename: `build/[name].[contenthash].js`,
+      chunkFilename: 'build/chunks/[id].[contenthash].js',
+      assetModuleFilename: 'build/asset-modules/[hash][ext][query]'
     },
     optimization: isProd
       ? {
-          minimizer: [
-            new TerserPlugin({
-              terserOptions: {}
-            })
-          ],
+          moduleIds: 'deterministic',
+          runtimeChunk: 'single',
           splitChunks: {
-            chunks: 'all'
-          }
+            cacheGroups: {
+              vendor: {
+                test: /[\\/]node_modules[\\/]/,
+                name: 'vendors',
+                chunks: 'all'
+              }
+            }
+          },
+          minimize: true,
+          minimizer: [new TerserPlugin()]
         }
       : undefined,
     resolve: {
@@ -87,8 +92,8 @@ module.exports = async (env, args) => {
       !isDevServer ? new CleanWebpackPlugin({ cleanOnceBeforeBuildPatterns: ['**/*'] }) : undefined,
       isProd
         ? new MiniCssExtractPlugin({
-            filename: `_build/[name].min.css`,
-            chunkFilename: `_build/chunks/[id].[contenthash].css`
+            filename: `build/[name].[contenthash].css`,
+            chunkFilename: `build/chunks/[id].[contenthash].css`
           })
         : undefined,
       !isDevServer
