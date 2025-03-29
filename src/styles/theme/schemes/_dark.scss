@@ -12,5 +12,5 @@
 // Dark theme
 @mixin theme {
   @include colors.theme(dark);
-  #{$css-var-prefix}theme-toggle-after-content: 'to light mode';
+  #{$css-var-prefix}theme-toggle-after-content: 'light mode';
 }

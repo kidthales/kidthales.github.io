@@ -12,7 +12,10 @@
 // Prefix for CSS variables
 $css-var-prefix: '--kt-' !default; // Must start with "--"
 
-// Breakpoints, viewports, and font sizes
+// Logo size
+$logo-size: 32px !default;
+
+// Breakpoints, viewports, font sizes, etc.
 $breakpoints: () !default;
 $breakpoints: map.deep-merge(
   (
@@ -23,7 +26,8 @@ $breakpoints: map.deep-merge(
         // 540px
         viewport: map.get(bsg.$container-max-widths, sm),
         // 17px
-        font-size: 106.25%
+        font-size: 106.25%,
+        logo-size: 32px
       ),
     // Medium (tablets)
     md: (
@@ -32,7 +36,8 @@ $breakpoints: map.deep-merge(
         // 720px
         viewport: map.get(bsg.$container-max-widths, md),
         // 18px
-        font-size: 112.5%
+        font-size: 112.5%,
+        logo-size: 32px
       ),
     // Large
     lg: (
@@ -41,7 +46,8 @@ $breakpoints: map.deep-merge(
         // 960px
         viewport: map.get(bsg.$container-max-widths, lg),
         // 19px
-        font-size: 118.75%
+        font-size: 118.75%,
+        logo-size: 32px
       ),
     // Extra large
     xl: (
@@ -50,7 +56,8 @@ $breakpoints: map.deep-merge(
         // 1140px
         viewport: map.get(bsg.$container-max-widths, xl),
         // 20px
-        font-size: 125%
+        font-size: 125%,
+        logo-size: 40px
       ),
     // Extra extra large
     xxl: (
@@ -59,7 +66,8 @@ $breakpoints: map.deep-merge(
         // 1320px
         viewport: map.get(bsg.$container-max-widths, xxl),
         // 21px
-        font-size: 131.25%
+        font-size: 131.25%,
+        logo-size: 40px
       )
   ),
   $breakpoints

@@ -17,7 +17,7 @@ module.exports = async (env, args) => {
     entry: resolve(__dirname, 'src', 'app.ts'),
     output: {
       path: distPath,
-      filename: `_build/app${isProd ? '.min' : ''}.js`,
+      filename: `_build/[name]${isProd ? '.min' : ''}.js`,
       chunkFilename: '_build/chunks/[id].[contenthash].js',
       assetModuleFilename: '_build/asset-modules/[hash][ext][query]'
     },
@@ -87,7 +87,7 @@ module.exports = async (env, args) => {
       !isDevServer ? new CleanWebpackPlugin({ cleanOnceBeforeBuildPatterns: ['**/*'] }) : undefined,
       isProd
         ? new MiniCssExtractPlugin({
-            filename: `_build/app${isProd ? '.min' : ''}.css`,
+            filename: `_build/[name].min.css`,
             chunkFilename: `_build/chunks/[id].[contenthash].css`
           })
         : undefined,

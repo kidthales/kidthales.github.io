@@ -1,10 +1,29 @@
 @use 'sass:map';
-@use 'bootstrap/scss/bootstrap-grid' as bsg;
 @use '../settings' as *;
 
 /**
  * Landmarks
  */
+
+@mixin fixed-container {
+  width: 100%;
+  margin-right: auto;
+  margin-left: auto;
+  padding-right: var(#{$css-var-prefix}block-spacing-horizontal);
+  padding-left: var(#{$css-var-prefix}block-spacing-horizontal);
+
+  $first-breakpoint: true;
+  @each $key, $values in $breakpoints {
+    @media (min-width: map.get($values, 'breakpoint')) {
+      max-width: map.get($values, 'viewport');
+      @if $first-breakpoint {
+        $first-breakpoint: false;
+        padding-right: 0;
+        padding-left: 0;
+      }
+    }
+  }
+}
 
 // Landmarks based on :
 // - normalize.css v8.0.1 | MIT License | github.com/necolas/normalize.css
@@ -17,67 +36,28 @@ main {
   display: block;
 }
 
-// 1. Remove the margin in all browsers (opinionated)
 body {
-  margin: 0; // 1
+  margin: 0; // Remove the margin in all browsers (opinionated)
   width: 100%;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
 
-  // https://webaim.org/techniques/css/invisiblecontent/#skipnavlinks
-  > a[href='#mainContent'] {
-    position: absolute;
-    left: -10000px;
-    top: auto;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-
-    &:focus {
-      position: static;
-      width: auto;
-      height: auto;
-    }
-  }
-
-  > header,
-  > main,
-  > footer {
-    width: 100%;
-    margin-right: auto;
-    margin-left: auto;
-    padding: var(#{$css-var-prefix}block-spacing-vertical) var(#{$css-var-prefix}block-spacing-horizontal);
-  }
-
-  > header,
-  > footer {
-    background-color: var(#{$css-var-prefix}muted-background-color);
-  }
-
   > header {
-    a[data-action='theme#toggle'] {
-      color: var(#{$css-var-prefix}secondary);
-
-      &::after {
-        content: var(#{$css-var-prefix}theme-toggle-after-content);
-      }
+    > nav {
+      @include fixed-container();
     }
   }
 
   > main {
     flex-grow: 1;
+    padding-top: var(#{$css-var-prefix}block-spacing-vertical);
+    padding-bottom: var(#{$css-var-prefix}block-spacing-vertical);
+    @include fixed-container();
+  }
 
-    $first-breakpoint: true;
-    @each $key, $values in $breakpoints {
-      @media (min-width: map.get($values, 'breakpoint')) {
-        max-width: map.get($values, 'viewport');
-        @if $first-breakpoint {
-          $first-breakpoint: false;
-          padding-right: 0;
-          padding-left: 0;
-        }
-      }
-    }
+  > footer {
+    padding: 0 var(#{$css-var-prefix}block-spacing-horizontal) calc(var(#{$css-var-prefix}block-spacing-vertical) / 4)
+      var(#{$css-var-prefix}block-spacing-horizontal);
   }
 }

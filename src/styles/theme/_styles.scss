@@ -35,9 +35,27 @@
 
   // Spacings
   #{$css-var-prefix}spacing: 1rem;
+
+  // Spacings for typography elements
   #{$css-var-prefix}typography-spacing-vertical: 1rem;
+
+  // Spacings for body > header, body > main, body > footer, section, article
   #{$css-var-prefix}block-spacing-vertical: var(#{$css-var-prefix}spacing);
   #{$css-var-prefix}block-spacing-horizontal: var(#{$css-var-prefix}spacing);
+
+  // Spacings for form elements and button
+  #{$css-var-prefix}form-element-spacing-vertical: 0.75rem;
+  #{$css-var-prefix}form-element-spacing-horizontal: 1rem;
+
+  // Font weight for form labels & fieldsets legend
+  #{$css-var-prefix}form-label-font-weight: var(#{$css-var-prefix}font-weight);
+
+  // Spacings for nav component
+  #{$css-var-prefix}nav-element-spacing-vertical: 1rem;
+  #{$css-var-prefix}nav-element-spacing-horizontal: 0.5rem;
+  #{$css-var-prefix}nav-link-spacing-vertical: 0.5rem;
+  #{$css-var-prefix}nav-link-spacing-horizontal: 0.5rem;
+  #{$css-var-prefix}nav-breadcrumb-divider: '>';
 
   // Responsive font size
   @each $key, $values in $breakpoints {
@@ -131,5 +149,135 @@
     #{$css-var-prefix}font-size: 1rem;
     #{$css-var-prefix}line-height: 1.25;
     #{$css-var-prefix}typography-spacing-top: 1.5rem;
+  }
+
+  // Table
+  thead,
+  tfoot {
+    th,
+    td {
+      #{$css-var-prefix}font-weight: 600;
+      #{$css-var-prefix}border-width: 0.1875rem;
+    }
+  }
+
+  // Code
+  pre,
+  code,
+  kbd,
+  samp {
+    #{$css-var-prefix}font-family: var(#{$css-var-prefix}font-family-monospace);
+  }
+
+  kbd {
+    #{$css-var-prefix}font-weight: bolder;
+  }
+
+  // Inputs and Selects
+  input:not([type='submit'], [type='button'], [type='reset'], [type='checkbox'], [type='radio'], [type='file']),
+  :where(select, textarea) {
+    #{$css-var-prefix}outline-width: 0.0625rem;
+  }
+
+  [type='search'] {
+    #{$css-var-prefix}border-radius: 5rem;
+  }
+
+  // https://webaim.org/techniques/css/invisiblecontent/#skipnavlinks
+  body > a[href='#mainContent'] {
+    position: absolute;
+    left: -10000px;
+    top: auto;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+
+    &:focus {
+      position: static;
+      width: auto;
+      height: auto;
+    }
+  }
+
+  // Landmark: header
+  body > header {
+    background-color: rgba(var(#{$css-var-prefix}background-color), 0.1);
+    backdrop-filter: blur(16px);
+
+    @media (min-width: map.get(map.get($breakpoints, 'lg'), 'breakpoint')) {
+      position: sticky;
+      top: 0;
+    }
+
+    nav li {
+      &::before {
+        content: '[';
+      }
+
+      &::after {
+        content: ']';
+      }
+    }
+
+    // Top nav
+    nav:first-of-type {
+      ul:first-of-type {
+        margin-left: 0;
+
+        // Logo
+        li:first-of-type {
+          a {
+            background-color: var(#{$css-var-prefix}contrast-background);
+            background-size: contain;
+
+            width: $logo-size;
+            height: $logo-size;
+            @each $key, $values in $breakpoints {
+              @media (min-width: map.get($values, 'breakpoint')) {
+                width: map.get($values, 'logo-size');
+                height: map.get($values, 'logo-size');
+              }
+            }
+          }
+
+          &::before {
+            content: '';
+          }
+
+          &::after {
+            content: '';
+          }
+        }
+      }
+
+      ul:last-of-type {
+        margin-right: 0;
+
+        // Theme toggle
+        a[data-action='theme#toggle'] {
+          &::after {
+            content: var(#{$css-var-prefix}theme-toggle-after-content);
+          }
+        }
+      }
+    }
+  }
+
+  // Landmark: main
+  body > main {
+    > header {
+      padding-bottom: var(#{$css-var-prefix}block-spacing-vertical);
+
+      hgroup {
+        text-align: center;
+      }
+    }
+  }
+
+  // Landmark: footer
+  body > footer {
+    display: flex;
+    justify-content: center;
+    color: var(#{$css-var-prefix}muted-color);
   }
 }

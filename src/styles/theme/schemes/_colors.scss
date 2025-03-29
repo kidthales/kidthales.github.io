@@ -1,6 +1,7 @@
 @use 'sass:map';
-@use '../../colors/qualitative/pale' as pale;
-@use '../../colors/qualitative/dark' as dark;
+@use '../../colors/qualitative/pale';
+@use '../../colors/qualitative/dark';
+@use '../../helpers/functions';
 @use '../../settings' as *;
 
 /**
@@ -62,34 +63,46 @@ $_schemes: (
 
   // Muted colors
   #{$css-var-prefix}muted-color: _get(fg-grey, $scheme);
-  #{$css-var-prefix}muted-background-color: _get(bg-grey, $scheme);
-  #{$css-var-prefix}muted-border-color: var(#{$css-var-prefix}muted-background-color);
+  #{$css-var-prefix}muted-border-color: _get(bg-grey, $scheme);
 
   // Primary colors
-  // TODO...
   #{$css-var-prefix}primary: _get(fg-blue, $scheme);
   #{$css-var-prefix}primary-background: _get(bg-blue, $scheme);
   #{$css-var-prefix}primary-border: var(#{$css-var-prefix}primary-background);
-  //#{$css-var-prefix}primary-underline: theme-colors.get("primary-underline", "light");
-  //#{$css-var-prefix}primary-hover: theme-colors.get("primary-hover", "light");
-  //#{$css-var-prefix}primary-hover-background: theme-colors.get("primary-hover-background", "light");
-  //#{$css-var-prefix}primary-hover-border: var(#{$css-var-prefix}primary-hover-background);
-  //#{$css-var-prefix}primary-hover-underline: var(#{$css-var-prefix}primary-hover);
-  //#{$css-var-prefix}primary-focus: theme-colors.get("primary-focus", "light");
-  //#{$css-var-prefix}primary-inverse: theme-colors.get("primary-inverse", "light");
+  #{$css-var-prefix}primary-underline: #{rgba(_get(fg-blue, $scheme), 0.5)};
+  #{$css-var-prefix}primary-hover: var(#{$css-var-prefix}primary);
+  #{$css-var-prefix}primary-hover-background: var(#{$css-var-prefix}primary-background);
+  #{$css-var-prefix}primary-hover-border: var(#{$css-var-prefix}primary-hover-background);
+  #{$css-var-prefix}primary-hover-underline: var(#{$css-var-prefix}primary-hover);
+  #{$css-var-prefix}primary-focus: var(#{$css-var-prefix}primary);
+  #{$css-var-prefix}primary-inverse: var(#{$css-var-prefix}background-color);
 
   // Secondary colors
-  // TODO...
   #{$css-var-prefix}secondary: _get(fg-cyan, $scheme);
   #{$css-var-prefix}secondary-background: _get(bg-cyan, $scheme);
   #{$css-var-prefix}secondary-border: var(#{$css-var-prefix}secondary-background);
-  //#{$css-var-prefix}secondary-underline: #{rgba($slate-550, 0.5)};
-  //#{$css-var-prefix}secondary-hover: #{$slate-650};
-  //#{$css-var-prefix}secondary-hover-background: #{$slate-650};
-  //#{$css-var-prefix}secondary-hover-border: var(#{$css-var-prefix}secondary-hover-background);
-  //#{$css-var-prefix}secondary-hover-underline: var(#{$css-var-prefix}secondary-hover);
-  //#{$css-var-prefix}secondary-focus: #{rgba($slate-550, 0.25)};
-  //#{$css-var-prefix}secondary-inverse: #{$white};
+  #{$css-var-prefix}secondary-underline: #{rgba(_get(fg-cyan, $scheme), 0.5)};
+  #{$css-var-prefix}secondary-hover: var(#{$css-var-prefix}secondary);
+  #{$css-var-prefix}secondary-hover-background: var(#{$css-var-prefix}secondary-background);
+  #{$css-var-prefix}secondary-hover-border: var(#{$css-var-prefix}secondary-hover-background);
+  #{$css-var-prefix}secondary-hover-underline: var(#{$css-var-prefix}secondary-hover);
+  #{$css-var-prefix}secondary-focus: var(#{$css-var-prefix}secondary);
+  #{$css-var-prefix}secondary-inverse: var(#{$css-var-prefix}background-color);
+
+  // Contrast colors
+  #{$css-var-prefix}contrast: #{$css-var-prefix}color;
+  #{$css-var-prefix}contrast-background: _get(fg-grey, $scheme);
+  #{$css-var-prefix}contrast-border: var(#{$css-var-prefix}contrast-background);
+  #{$css-var-prefix}contrast-underline: #{rgba(_get(fg, $scheme), 0.5)};
+  #{$css-var-prefix}contrast-hover: var(#{$css-var-prefix}contrast);
+  #{$css-var-prefix}contrast-hover-background: var(#{$css-var-prefix}contrast-background);
+  #{$css-var-prefix}contrast-hover-border: var(#{$css-var-prefix}contrast-hover-background);
+  #{$css-var-prefix}contrast-hover-underline: var(#{$css-var-prefix}contrast-hover);
+  #{$css-var-prefix}contrast-focus: var(#{$css-var-prefix}contrast);
+  #{$css-var-prefix}contrast-inverse: var(#{$css-var-prefix}background-color);
+
+  // Box shadow
+  #{$css-var-prefix}box-shadow: functions.shadow(_get(fg-grey, $scheme));
 
   // Typography
   // Headings colors
@@ -111,4 +124,49 @@ $_schemes: (
   // Blockquote
   #{$css-var-prefix}blockquote-border-color: var(#{$css-var-prefix}muted-border-color);
   #{$css-var-prefix}blockquote-footer-color: var(#{$css-var-prefix}muted-color);
+
+  // Button
+  // To disable box-shadow, remove the var or set to '0 0 0 rgba(0, 0, 0, 0)'
+  // Don't use, 'none, 'false, 'null', '0', etc.
+  #{$css-var-prefix}button-box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+  #{$css-var-prefix}button-hover-box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+
+  // Table
+  #{$css-var-prefix}table-border-color: var(#{$css-var-prefix}muted-border-color);
+  #{$css-var-prefix}table-row-stripped-background-color: #{rgba(_get(bg-grey, $scheme), 0.0375)};
+
+  // Code
+  #{$css-var-prefix}code-background-color: var(#{$css-var-prefix}background-color);
+  #{$css-var-prefix}code-color: var(#{$css-var-prefix}color);
+  #{$css-var-prefix}code-kbd-background-color: var(#{$css-var-prefix}color);
+  #{$css-var-prefix}code-kbd-color: var(#{$css-var-prefix}background-color);
+
+  // Form elements
+  #{$css-var-prefix}form-element-background-color: var(#{$css-var-prefix}background-color);
+  #{$css-var-prefix}form-element-selected-background-color: var(#{$css-var-prefix}background-color);
+  #{$css-var-prefix}form-element-border-color: var(#{$css-var-prefix}background-color);
+  #{$css-var-prefix}form-element-color: var(#{$css-var-prefix}color);
+  #{$css-var-prefix}form-element-placeholder-color: var(#{$css-var-prefix}muted-color);
+  #{$css-var-prefix}form-element-active-background-color: var(#{$css-var-prefix}background-color);
+  #{$css-var-prefix}form-element-active-border-color: var(#{$css-var-prefix}primary-border);
+  #{$css-var-prefix}form-element-focus-color: var(#{$css-var-prefix}primary-border);
+  #{$css-var-prefix}form-element-disabled-opacity: 0.5;
+  #{$css-var-prefix}form-element-invalid-border-color: #{_get(fg-red, $scheme)};
+  #{$css-var-prefix}form-element-invalid-active-border-color: #{_get(fg-red, $scheme)};
+  #{$css-var-prefix}form-element-invalid-focus-color: var(#{$css-var-prefix}form-element-invalid-active-border-color);
+  #{$css-var-prefix}form-element-valid-border-color: #{_get(fg-green, $scheme)};
+  #{$css-var-prefix}form-element-valid-active-border-color: #{_get(fg-green, $scheme)};
+  #{$css-var-prefix}form-element-valid-focus-color: var(#{$css-var-prefix}form-element-valid-active-border-color);
+
+  // Form validation icons
+  #{$css-var-prefix}icon-valid: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='#{_get(fg-green, $scheme)}' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'%3E%3C/polyline%3E%3C/svg%3E");
+  #{$css-var-prefix}icon-invalid: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='#{_get(fg-red, $scheme)}' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'%3E%3C/circle%3E%3Cline x1='12' y1='8' x2='12' y2='12'%3E%3C/line%3E%3Cline x1='12' y1='16' x2='12.01' y2='16'%3E%3C/line%3E%3C/svg%3E");
+
+  // Focus for buttons, radio and select
+  input:is([type='submit'], [type='button'], [type='reset'], [type='checkbox'], [type='radio'], [type='file']) {
+    #{$css-var-prefix}form-element-focus-color: var(#{$css-var-prefix}primary-focus);
+  }
+
+  // Chevron icons
+  #{$css-var-prefix}icon-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='#{_get(fg-grey, $scheme)}' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
 }

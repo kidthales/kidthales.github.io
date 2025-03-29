@@ -1,0 +1,20 @@
+@use '../settings' as *;
+
+/**
+ * Figure
+ */
+
+// Figure based on :
+// - pico.css v2.1.1 | MIT License | github.com/picocss/pico
+// ––––––––––––––––––––
+
+figure {
+  display: block;
+  margin: 0;
+  padding: 0;
+
+  figcaption {
+    padding: calc(var(#{$css-var-prefix}spacing) * 0.5) 0;
+    color: var(#{$css-var-prefix}muted-color);
+  }
+}
