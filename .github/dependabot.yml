@@ -8,3 +8,10 @@ updates:
       timezone: Canada/Pacific
     versioning-strategy: increase-if-necessary
     open-pull-requests-limit: 50
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: cron
+      cronjob: '0 8 * * SAT'
+      timezone: Canada/Pacific
