@@ -17,6 +17,7 @@ module.exports = async (env, args) => {
     entry: resolve(__dirname, 'src', 'app.ts'),
     output: {
       path: distPath,
+      publicPath: '/',
       filename: `build/[name].[contenthash].js`,
       chunkFilename: 'build/chunks/[id].[contenthash].js',
       assetModuleFilename: 'build/asset-modules/[hash][ext][query]'
@@ -109,6 +110,10 @@ module.exports = async (env, args) => {
         filename: '404.html',
         template: resolve(__dirname, 'content', '404.ejs'),
         meta: { robots: 'noindex' }
+      }),
+      new HtmlWebpackPlugin({
+        filename: 'spiderex/index.html',
+        template: resolve(__dirname, 'content', 'spiderex.ejs')
       })
     ].filter(Boolean),
     devServer: {

@@ -1,0 +1,38 @@
+<%- include('../templates/header.ejs', {
+title: "Spiderex",
+subtitle: 'Daily guitar finger exercise drills',
+description: 'Daily guitar finger exercise drills'
+}) %>
+
+<div data-controller="spiderex">
+    <div class="row row-cols-1 justify-content-center">
+        <div class="col-md-4">
+            <form>
+                <input type="date" name="date" placeholder="yyyy-mm-dd" aria-label="Date" data-spiderex-target="query">
+                <input type="submit" value="Query Date">
+            </form>
+        </div>
+    </div>
+    <div class="row row-cols-1">
+        <div class="col-12">
+            <section>
+                <h2>Warmup</h2>
+                <div data-spiderex-target="warmupResults"></div>
+            </section>
+        </div>
+        <div class="col-12">
+            <section>
+                <h2>String Skip</h2>
+                <div data-spiderex-target="stringSkipResults"></div>
+            </section>
+        </div>
+        <div class="col-12">
+            <section>
+                <h2>Twister</h2>
+                <div data-spiderex-target="twisterResults"></div>
+            </section>
+        </div>
+    </div>
+</div>
+
+<%- include('../templates/footer.ejs') %>
