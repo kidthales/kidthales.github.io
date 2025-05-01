@@ -144,7 +144,7 @@ $_schemes: (
   // Form elements
   #{$css-var-prefix}form-element-background-color: var(#{$css-var-prefix}background-color);
   #{$css-var-prefix}form-element-selected-background-color: var(#{$css-var-prefix}background-color);
-  #{$css-var-prefix}form-element-border-color: var(#{$css-var-prefix}background-color);
+  #{$css-var-prefix}form-element-border-color: var(#{$css-var-prefix}muted-border-color);
   #{$css-var-prefix}form-element-color: var(#{$css-var-prefix}color);
   #{$css-var-prefix}form-element-placeholder-color: var(#{$css-var-prefix}muted-color);
   #{$css-var-prefix}form-element-active-background-color: var(#{$css-var-prefix}background-color);
