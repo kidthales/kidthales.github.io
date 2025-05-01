@@ -1,7 +1,7 @@
 <%- include('../templates/header.ejs', {
 title: "Spiderex",
-subtitle: 'Daily guitar finger exercise drills',
-description: 'Daily guitar finger exercise drills'
+subtitle: 'Daily guitar fingering drills',
+description: 'Daily guitar fingering drills'
 }) %>
 
 <div data-controller="spiderex">
@@ -17,18 +17,19 @@ description: 'Daily guitar finger exercise drills'
         <div class="col-12">
             <section>
                 <h2>Warmup</h2>
+                <p>
+                    Play each pattern ascending & descending across all strings, with straight & triplet feel. Once you
+                    are comfortable with the patterns, phase in some string skipping.
+                </p>
                 <div data-spiderex-target="warmupResults"></div>
             </section>
         </div>
         <div class="col-12">
             <section>
-                <h2>String Skip</h2>
-                <div data-spiderex-target="stringSkipResults"></div>
-            </section>
-        </div>
-        <div class="col-12">
-            <section>
                 <h2>Twister</h2>
+                <p>
+                    Built from the warmup patterns listed above.
+                </p>
                 <div data-spiderex-target="twisterResults"></div>
             </section>
         </div>
