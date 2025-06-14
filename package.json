@@ -14,7 +14,7 @@
     "@eslint/eslintrc": "^3.3.0",
     "@hotwired/stimulus": "^3.2.2",
     "@hotwired/stimulus-webpack-helpers": "^1.0.1",
-    "@types/node": "^22.13.10",
+    "@types/node": "^24.0.1",
     "@types/webpack-env": "^1.18.8",
     "@typescript-eslint/eslint-plugin": "^8.27.0",
     "@typescript-eslint/parser": "^8.27.0",
