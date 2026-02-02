@@ -8,6 +8,16 @@ updates:
       timezone: Canada/Pacific
     versioning-strategy: increase-if-necessary
     open-pull-requests-limit: 50
+    groups:
+      lint:
+        patterns:
+          - '@eslint/eslintrc'
+          - '@typescript-eslint/*'
+          - eslint
+          - eslint-config-prettier
+          - eslint-plugin-prettier
+          - lint-staged
+          - prettier
 
   - package-ecosystem: github-actions
     directory: /
