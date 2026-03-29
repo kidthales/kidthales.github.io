@@ -4,54 +4,12 @@ subtitle: 'The homepage for kidthales',
 description: 'The homepage for kidthales'
 }) %>
 
-<div class="row row-cols-1 row-cols-md-2">
-    <div class="col-md-8">
-        <section>
-            <header>
-                <hgroup>
-                    <h2>Projects</h2>
-                    <p>Tools, games, & other curiosities</p>
-                </hgroup>
-            </header>
-
-            <dl>
-                <dt><a href="https://github.com/kidthales/docker-game-development-toolkit/pkgs/container/gdtk" target="_blank">Docker Game Development Toolkit</a></dt>
-                <dd>A Docker image with a curated collection of free tools useful for game development use cases such as build scripts or automated workflows like GitHub Actions.</dd>
-
-                <dt><a href="/spiderex/" target="_blank">Spiderex</a></dt>
-                <dd>Daily guitar fingering drills.</dd>
-            </dl>
-        </section>
-    </div>
-
-    <div class="col-md-4">
-        <section>
-            <header>
-                <hgroup>
-                    <h2>Memoranda</h2>
-                    <p>Brief communications & notes</p>
-                </hgroup>
-            </header>
-
-            <ul>
-                <li>
-                    <a href="https://youtu.be/FCqlnp0jL9Q" target="_blank">
-                        Another game prototype made with Pixel Game Maker MV
-                    </a>
-                </li>
-                <li>
-                    <a href="https://youtu.be/_1gtyKnZgJ4" target="_blank">
-                        A narrative prototype made with Phaser
-                    </a>
-                </li>
-                <li>
-                    <a href="https://youtu.be/s_LIZoLx1Zg" target="_blank">
-                        A game prototype made with Pixel Game Maker MV
-                    </a>
-                </li>
-            </ul>
-        </section>
-    </div>
+<div class="row row-cols-1">
+    <section style="display: flex; flex-wrap: wrap; justify-content: center; gap: var(--kt-spacing)">
+        <iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/FCqlnp0jL9Q?si=qYwnB0J-4RkgdeVk" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+        <iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/_1gtyKnZgJ4?si=t1yeTdPGWxUuczwF" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+        <iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/s_LIZoLx1Zg?si=akh16ZnhyTfLE45C" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+    </section>
 </div>
 
 <%- include('../templates/footer.ejs') %>
