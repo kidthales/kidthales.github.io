@@ -114,6 +114,10 @@ module.exports = async (env, args) => {
       new HtmlWebpackPlugin({
         filename: 'spiderex/index.html',
         template: resolve(__dirname, 'content', 'spiderex.ejs')
+      }),
+      new HtmlWebpackPlugin({
+        filename: 'pgmmv/index.html',
+        template: resolve(__dirname, 'content', 'pgmmv.ejs')
       })
     ].filter(Boolean),
     devServer: {
