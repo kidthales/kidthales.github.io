@@ -77,7 +77,13 @@ module.exports = async (env, args) => {
         },
         {
           test: /\.ejs$/i,
-          use: ['html-loader', 'template-ejs-loader']
+          use: [
+            'html-loader',
+            {
+              loader: 'template-ejs-loader',
+              options: { async: true }
+            }
+          ]
         },
         {
           test: /\.html$/i,
