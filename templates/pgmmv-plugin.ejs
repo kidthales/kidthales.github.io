@@ -1,0 +1,159 @@
+<% const {info, latestRelease, releases, repoUrl} = data %>
+
+<%- await include('./header.ejs', {
+    title: info.name,
+    subtitle: info.description,
+    description: info.description,
+}) %>
+
+<section>
+    <nav aria-label="breadcrumb">
+        <ul>
+            <li><a href="/">Home</a></li>
+            <li><a href="/pgmmv/">PGMMV</a></li>
+            <li><%= info.name %></li>
+        </ul>
+    </nav>
+</section>
+
+<div class="row row-cols-1 row-cols-xl-2">
+    <div class="col-xl-9">
+        <% if (info.help) { %>
+            <section>
+                <h2>Help</h2>
+                <pre><code><%= info.help %></code></pre>
+            </section>
+        <% } %>
+
+        <% if (info.parameter.length) { %>
+            <section>
+                <h2>Parameters</h2>
+                <table class="striped">
+                    <thead>
+                    <tr>
+                        <th scope="col">Name</th>
+                        <th scope="col">Value</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <% info.parameter.forEach(function (p) { %>
+                        <tr>
+                            <th scope="row"><small><%= p.name %></small></th>
+                            <td><small><%= p.value %></small></td>
+                        </tr>
+                    <% }) %>
+                    </tbody>
+                </table>
+            </section>
+        <% } %>
+
+        <% if (info.actionCommand.length) { %>
+            <section>
+                <h2>Action Commands</h2>
+                <table>
+                    <thead>
+                    <tr>
+                        <th scope="col">Name</th>
+                        <th scope="col">Description</th>
+                        <th scope="col">Parameters</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <% info.actionCommand.forEach(function (ac) { %>
+                        <tr>
+                            <th scope="row"><%= ac.name.replace(` [${info.name}]`, '') %></th>
+                            <td><%= ac.description %></td>
+                            <td>
+                                <table class="striped">
+                                    <thead>
+                                    <tr>
+                                        <th scope="col">Name</th>
+                                        <th scope="col">Value</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    <% ac.parameter.forEach(function (p) { %>
+                                        <tr>
+                                            <th scope="row"><small><%= p.name %></small></th>
+                                            <td><small><%= p.value %></small></td>
+                                        </tr>
+                                    <% }) %>
+                                    </tbody>
+                                </table>
+                            </td>
+                        </tr>
+                    <% }) %>
+                    </tbody>
+                </table>
+            </section>
+        <% } %>
+
+        <% if (info.linkCondition.length) { %>
+            <section>
+                <h2>Link Conditions</h2>
+                <table>
+                    <thead>
+                    <tr>
+                        <th scope="col">Name</th>
+                        <th scope="col">Description</th>
+                        <th scope="col">Parameters</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <% info.linkCondition.forEach(function (lc) { %>
+                        <tr>
+                            <th scope="row"><%= lc.name.replace(` [${info.name}]`, '') %></th>
+                            <td><%= lc.description %></td>
+                            <td>
+                                <table class="striped">
+                                    <thead>
+                                    <tr>
+                                        <th scope="col">Name</th>
+                                        <th scope="col">Value</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    <% lc.parameter.forEach(function (p) { %>
+                                        <tr>
+                                            <th scope="row"><small><%= p.name %></small></th>
+                                            <td><small><%= p.value %></small></td>
+                                        </tr>
+                                    <% }) %>
+                                    </tbody>
+                                </table>
+                            </td>
+                        </tr>
+                    <% }) %>
+                    </tbody>
+                </table>
+            </section>
+        <% } %>
+    </div>
+    <div class="col-xl-3">
+        <aside>
+            <h2>Downloads</h2>
+            <nav>
+                <ul>
+                    <% releases.forEach(function (release) { %>
+                        <li>
+                            <a href="<%= release.assets[0].browser_download_url %>"
+                               class="<%= latestRelease.tag_name !== release.tag_name ? 'contrast' : '' %>">
+                                <%= release.tag_name %> <%= latestRelease.tag_name === release.tag_name ? '(Latest)' : '' %>
+                            </a>
+                            <time><%= release.assets[0].updated_at %></time>
+                        </li>
+                    <% }) %>
+                </ul>
+            </nav>
+            <hr>
+            <h3>GitHub</h3>
+            <nav>
+                <ul>
+                    <li><a href="<%= repoUrl %>" target="_blank" class="secondary"><%= repoUrl %></a></li>
+                </ul>
+            </nav>
+        </aside>
+    </div>
+</div>
+
+<%- await include('./footer.ejs') %>

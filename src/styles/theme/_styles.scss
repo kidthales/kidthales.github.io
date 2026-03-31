@@ -209,6 +209,13 @@
       top: 0;
     }
 
+    nav,
+    nav ul {
+      @media (max-width: map.get(map.get($breakpoints, 'sm'), 'breakpoint')) {
+        flex-direction: column;
+      }
+    }
+
     nav li {
       &::before {
         content: '[';
