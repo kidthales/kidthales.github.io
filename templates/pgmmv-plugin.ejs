@@ -16,26 +16,6 @@
     </nav>
 </section>
 
-<!--<div class="row" style="justify-content: center">
-    <div class="col-6">
-        <section>
-            <hr>
-            <header>
-                <nav>
-                    <ul>
-                        <li><strong><%= latestRelease.tag_name %></strong></li>
-                        <li><a href="<%= latestRelease.assets[0].browser_download_url %>">Download</a></li>
-                    </ul>
-                    <ul>
-                        <li><a href="<%= repoUrl %>" class="secondary">GitHub</a></li>
-                    </ul>
-                </nav>
-            </header>
-            <hr>
-        </section>
-    </div>
-</div>-->
-
 <div class="row row-cols-1 row-cols-xl-2">
     <div class="col-xl-9">
         <% if (info.help) { %>
@@ -52,18 +32,14 @@
                     <thead>
                     <tr>
                         <th scope="col">Name</th>
-                        <th scope="col">Type</th>
-                        <th scope="col">Default</th>
+                        <th scope="col">Value</th>
                     </tr>
                     </thead>
                     <tbody>
                     <% info.parameter.forEach(function (p) { %>
                         <tr>
                             <th scope="row"><small><%= p.name %></small></th>
-                            <td><small><%= p.type %></small></td>
-                            <td>
-                                <pre><code><%= p.defaultValue %></code></pre>
-                            </td>
+                            <td><small><%= p.value %></small></td>
                         </tr>
                     <% }) %>
                     </tbody>
@@ -92,18 +68,14 @@
                                     <thead>
                                     <tr>
                                         <th scope="col">Name</th>
-                                        <th scope="col">Type</th>
-                                        <th scope="col">Default</th>
+                                        <th scope="col">Value</th>
                                     </tr>
                                     </thead>
                                     <tbody>
                                     <% ac.parameter.forEach(function (p) { %>
                                         <tr>
                                             <th scope="row"><small><%= p.name %></small></th>
-                                            <td><small><%= p.type %></small></td>
-                                            <td>
-                                                <pre><code><%= p.defaultValue %></code></pre>
-                                            </td>
+                                            <td><small><%= p.value %></small></td>
                                         </tr>
                                     <% }) %>
                                     </tbody>
@@ -137,18 +109,14 @@
                                     <thead>
                                     <tr>
                                         <th scope="col">Name</th>
-                                        <th scope="col">Type</th>
-                                        <th scope="col">Default</th>
+                                        <th scope="col">Value</th>
                                     </tr>
                                     </thead>
                                     <tbody>
                                     <% lc.parameter.forEach(function (p) { %>
                                         <tr>
                                             <th scope="row"><small><%= p.name %></small></th>
-                                            <td><small><%= p.type %></small></td>
-                                            <td>
-                                                <pre><code><%= p.defaultValue %></code></pre>
-                                            </td>
+                                            <td><small><%= p.value %></small></td>
                                         </tr>
                                     <% }) %>
                                     </tbody>

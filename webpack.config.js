@@ -179,5 +179,52 @@ async function fetchPGMMVPluginData(pluginIdentifier) {
       info // Last expression returned
     `);
 
+  function normalizeParameters(parameters) {
+    return parameters.map(function (param) {
+      const p = {
+        name: param.name.replace(`[${info.name}]`, '').trim()
+      };
+
+      switch (param.type) {
+        case 'SwitchVariableObjectId':
+          p.value = 'Project Common';
+          param.option.forEach(function (option) {
+            switch (option) {
+              case 'SelfObject':
+                p.value += ', Object Self';
+                break;
+              case 'ParentObject':
+                p.value += ', Parent Object';
+                break;
+            }
+          });
+          break;
+        case 'CustomId':
+          p.value = param.customParam.reduce(function (v, cp) {
+            v += !v ? cp.name : `, ${cp.name}`;
+            return v;
+          }, '');
+          break;
+        default:
+          p.value = param.type;
+          break;
+      }
+
+      return p;
+    });
+  }
+
+  info.parameter = normalizeParameters(info.parameter);
+
+  info.actionCommand = info.actionCommand.map(function (ac) {
+    ac.parameter = normalizeParameters(ac.parameter);
+    return ac;
+  });
+
+  info.linkCondition = info.linkCondition.map(function (lc) {
+    lc.parameter = normalizeParameters(lc.parameter);
+    return lc;
+  });
+
   return { info, latestRelease, releases, repoUrl: `https://github.com/kidthales/${pluginIdentifier}` };
 }
