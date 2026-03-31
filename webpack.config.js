@@ -4,6 +4,7 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const { resolve } = require('path');
 const TerserPlugin = require('terser-webpack-plugin');
+const vm = require('vm');
 
 module.exports = async (env, args) => {
   const mode = args.mode || 'production';
@@ -81,7 +82,7 @@ module.exports = async (env, args) => {
             'html-loader',
             {
               loader: 'template-ejs-loader',
-              options: { async: true }
+              options: { async: true, data: { fetchPGMMVPluginData } }
             }
           ]
         },
@@ -124,6 +125,10 @@ module.exports = async (env, args) => {
       new HtmlWebpackPlugin({
         filename: 'pgmmv/index.html',
         template: resolve(__dirname, 'content', 'pgmmv.ejs')
+      }),
+      new HtmlWebpackPlugin({
+        filename: 'pgmmv/coordinates-plugin/index.html',
+        template: resolve(__dirname, 'content', 'pgmmv-coordinates-plugin.ejs')
       })
     ].filter(Boolean),
     devServer: {
@@ -140,3 +145,31 @@ module.exports = async (env, args) => {
     }
   };
 };
+
+async function fetchPGMMVPluginData(pluginIdentifier) {
+  const latestReleaseResponse = await fetch(
+    `https://api.github.com/repos/kidthales/${pluginIdentifier}/releases/latest`
+  );
+
+  const releases = await (await fetch(`https://api.github.com/repos/kidthales/${pluginIdentifier}/releases`)).json();
+
+  const latestRelease = latestReleaseResponse.status !== 200 ? releases[0] : await latestReleaseResponse.json();
+
+  const iife = await (await fetch(latestRelease.assets[0].browser_download_url)).text();
+  const info = vm.runInThisContext(`
+      var plugin = ${iife}
+      var info = {
+        name: plugin.getInfo('name'),
+        description: plugin.getInfo('description'),
+        author: plugin.getInfo('author'),
+        help: plugin.getInfo('help'),
+        parameter: plugin.getInfo('parameter'),
+        internal: plugin.getInfo('internal'),
+        actionCommand: plugin.getInfo('actionCommand'),
+        linkCondition: plugin.getInfo('linkCondition'),
+      };
+      info // Last expression returned
+    `);
+
+  return { info, latestRelease, releases, repoUrl: `https://github.com/kidthales/${pluginIdentifier}` };
+}

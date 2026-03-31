@@ -1,0 +1,59 @@
+<% const { info, latestRelease, releases, repoUrl } = data %>
+
+<%- await include('./header.ejs', {
+    title: info.name,
+    subtitle: info.description,
+    description: info.description,
+}) %>
+
+<div class="row" style="justify-content: center">
+    <div class="col-6">
+        <section>
+            <hr>
+            <header>
+                <nav>
+                    <ul>
+                        <li><strong><%= latestRelease.tag_name %></strong></li>
+                        <li><a href="<%= latestRelease.assets[0].browser_download_url %>">Download</a></li>
+                    </ul>
+                    <ul>
+                        <li><a href="<%= repoUrl %>" class="secondary">GitHub</a></li>
+                    </ul>
+                </nav>
+            </header>
+            <hr>
+        </section>
+    </div>
+</div>
+
+<div class="row row-cols-1 row-cols-md-2">
+    <div class="col-md-8">
+        <section>
+            <h2>Info</h2>
+            <h3>Help</h3>
+            <h3>Parameters</h3>
+            <h3>Action Commands</h3>
+            <h3>Link Conditions</h3>
+        </section>
+    </div>
+    <div class="col-md-4">
+        <aside>
+            <h2>Downloads</h2>
+            <nav>
+                <ul>
+                    <% releases.forEach(function (release) { %>
+                        <li><a href="<%= release.assets[0].browser_download_url %>"><%= release.tag_name %></a> <time><%= release.assets[0].updated_at %></time></li>
+                    <% });%>
+                </ul>
+            </nav>
+        </aside>
+    </div>
+</div>
+
+<!---->
+
+<pre>
+<%= JSON.stringify(data, undefined, 2) %>
+</pre>
+
+<%- await include('./footer.ejs') %>
