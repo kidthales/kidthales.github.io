@@ -129,6 +129,14 @@ module.exports = async (env, args) => {
       new HtmlWebpackPlugin({
         filename: 'pgmmv/coordinates-plugin/index.html',
         template: resolve(__dirname, 'content', 'pgmmv-coordinates-plugin.ejs')
+      }),
+      new HtmlWebpackPlugin({
+        filename: 'pgmmv/snap-to-tile-plugin/index.html',
+        template: resolve(__dirname, 'content', 'pgmmv-snap-to-tile-plugin.ejs')
+      }),
+      new HtmlWebpackPlugin({
+        filename: 'pgmmv/storage-plugin/index.html',
+        template: resolve(__dirname, 'content', 'pgmmv-storage-plugin.ejs')
       })
     ].filter(Boolean),
     devServer: {

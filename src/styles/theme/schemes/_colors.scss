@@ -133,7 +133,7 @@ $_schemes: (
 
   // Table
   #{$css-var-prefix}table-border-color: var(#{$css-var-prefix}muted-border-color);
-  #{$css-var-prefix}table-row-stripped-background-color: #{rgba(_get(bg-grey, $scheme), 0.0375)};
+  #{$css-var-prefix}table-row-stripped-background-color: #{rgba(_get(bg-grey, $scheme), 0.375)};
 
   // Code
   #{$css-var-prefix}code-background-color: var(#{$css-var-prefix}background-color);
