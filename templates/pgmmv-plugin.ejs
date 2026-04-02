@@ -28,22 +28,7 @@
         <% if (info.parameter.length) { %>
             <section>
                 <h2>Parameters</h2>
-                <table class="striped">
-                    <thead>
-                    <tr>
-                        <th scope="col">Name</th>
-                        <th scope="col">Value</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <% info.parameter.forEach(function (p) { %>
-                        <tr>
-                            <th scope="row"><small><%= p.name %></small></th>
-                            <td><small><%= p.value %></small></td>
-                        </tr>
-                    <% }) %>
-                    </tbody>
-                </table>
+                <%- await include('./pgmmv-plugin-param-table.ejs', {parameters: info.parameter}) %>
             </section>
         <% } %>
 
@@ -59,30 +44,15 @@
                     </tr>
                     </thead>
                     <tbody>
-                    <% info.actionCommand.forEach(function (ac) { %>
+                    <% for (const ac of info.actionCommand) { %>
                         <tr>
                             <th scope="row"><%= ac.name.replace(` [${info.name}]`, '') %></th>
                             <td><%= ac.description %></td>
                             <td>
-                                <table class="striped">
-                                    <thead>
-                                    <tr>
-                                        <th scope="col">Name</th>
-                                        <th scope="col">Value</th>
-                                    </tr>
-                                    </thead>
-                                    <tbody>
-                                    <% ac.parameter.forEach(function (p) { %>
-                                        <tr>
-                                            <th scope="row"><small><%= p.name %></small></th>
-                                            <td><small><%= p.value %></small></td>
-                                        </tr>
-                                    <% }) %>
-                                    </tbody>
-                                </table>
+                                <%- await include('./pgmmv-plugin-param-table.ejs', {parameters: ac.parameter}) %>
                             </td>
                         </tr>
-                    <% }) %>
+                    <% } %>
                     </tbody>
                 </table>
             </section>
@@ -100,30 +70,15 @@
                     </tr>
                     </thead>
                     <tbody>
-                    <% info.linkCondition.forEach(function (lc) { %>
+                    <% for (const lc of info.linkCondition) { %>
                         <tr>
                             <th scope="row"><%= lc.name.replace(` [${info.name}]`, '') %></th>
                             <td><%= lc.description %></td>
                             <td>
-                                <table class="striped">
-                                    <thead>
-                                    <tr>
-                                        <th scope="col">Name</th>
-                                        <th scope="col">Value</th>
-                                    </tr>
-                                    </thead>
-                                    <tbody>
-                                    <% lc.parameter.forEach(function (p) { %>
-                                        <tr>
-                                            <th scope="row"><small><%= p.name %></small></th>
-                                            <td><small><%= p.value %></small></td>
-                                        </tr>
-                                    <% }) %>
-                                    </tbody>
-                                </table>
+                                <%- await include('./pgmmv-plugin-param-table.ejs', {parameters: lc.parameter}) %>
                             </td>
                         </tr>
-                    <% }) %>
+                    <% } %>
                     </tbody>
                 </table>
             </section>
@@ -146,7 +101,7 @@
                 </ul>
             </nav>
             <hr>
-            <h3>GitHub</h3>
+            <h2>GitHub</h2>
             <nav>
                 <ul>
                     <li><a href="<%= repoUrl %>" target="_blank" class="secondary"><%= repoUrl %></a></li>

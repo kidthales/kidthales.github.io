@@ -1,0 +1,16 @@
+<table class="striped">
+    <thead>
+    <tr>
+        <th scope="col"><small>Name</small></th>
+        <th scope="col"><small>Value</small></th>
+    </tr>
+    </thead>
+    <tbody>
+    <% parameters.forEach(function (p) { %>
+        <tr>
+            <th scope="row"><small><%= p.name %></small></th>
+            <td><small><%= p.value %></small></td>
+        </tr>
+    <% }) %>
+    </tbody>
+</table>
