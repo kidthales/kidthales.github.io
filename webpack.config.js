@@ -128,6 +128,10 @@ module.exports = async (env, args) => {
         template: resolve(__dirname, 'content', 'pgmmv.ejs')
       }),
       new HtmlWebpackPlugin({
+        filename: 'pgmmv/collision-plugin/index.html',
+        template: resolve(__dirname, 'content', 'pgmmv-collision-plugin.ejs')
+      }),
+      new HtmlWebpackPlugin({
         filename: 'pgmmv/coordinates-plugin/index.html',
         template: resolve(__dirname, 'content', 'pgmmv-coordinates-plugin.ejs')
       }),
