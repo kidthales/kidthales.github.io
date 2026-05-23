@@ -36,7 +36,7 @@
     "prettier": "^3.5.3",
     "rot-js": "^2.2.1",
     "sass": "^1.86.0",
-    "sass-loader": "^16.0.5",
+    "sass-loader": "^17.0.0",
     "style-loader": "^4.0.0",
     "template-ejs-loader": "^0.9.4",
     "terser-webpack-plugin": "^5.3.14",
