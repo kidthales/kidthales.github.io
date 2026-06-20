@@ -18,6 +18,9 @@ updates:
           - eslint-plugin-prettier
           - lint-staged
           - prettier
+      babel:
+        patterns:
+          - '@babel/*'
 
   - package-ecosystem: github-actions
     directory: /
