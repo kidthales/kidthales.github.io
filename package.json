@@ -34,7 +34,7 @@
     "lint-staged": "^17.0.3",
     "mini-css-extract-plugin": "^2.9.2",
     "prettier": "^3.5.3",
-    "rot-js": "^2.2.1",
+    "rot-js": "https://github.com/kidthales/rot.js/archive/refs/tags/v2.2.1.tar.gz",
     "sass": "^1.86.0",
     "sass-loader": "^17.0.0",
     "style-loader": "^4.0.0",
