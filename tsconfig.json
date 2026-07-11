@@ -9,7 +9,8 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "strict": true
+    "strict": true,
+    "noUncheckedSideEffectImports": false
   },
   "include": ["src"],
   "exclude": ["**/*.spec.ts"]
