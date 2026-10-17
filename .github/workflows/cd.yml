@@ -66,39 +66,48 @@ jobs:
 
           SHORT_SHA=$(echo "$COMMIT_SHA" | cut -c1-7)
           RUN_URL="$SERVER_URL/$REPO_NAME/actions/runs/$RUN_ID"
+          COMMIT_URL="$SERVER_URL/$REPO_NAME/commit/$COMMIT_SHA"
+          TIMESTAMP=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
 
-          PAYLOAD=$(cat <<EOF
-          {
-            "username": "kidthales CI/CD",
-            "avatar_url": "https://github.com/kidthales.png",
-            "embeds": [
-              {
-                "title": "$STATUS_ICON $TITLE",
-                "color": $COLOR,
-                "description": "GitHub Pages CD deployment completed for branch \`$BRANCH_NAME\`.",
-                "url": "$RUN_URL",
-                "author": {
-                  "name": "kidthales Systems CI",
-                  "icon_url": "https://github.com/kidthales.png"
+          PAYLOAD=$(jq -n \
+            --arg title "$STATUS_ICON $TITLE" \
+            --argjson color "$COLOR" \
+            --arg desc "GitHub Pages CD deployment completed for branch \`$BRANCH_NAME\`." \
+            --arg run_url "$RUN_URL" \
+            --arg repo "\`$REPO_NAME\`" \
+            --arg branch "\`$BRANCH_NAME\`" \
+            --arg actor "@$ACTOR" \
+            --arg workflow "$WORKFLOW_NAME" \
+            --arg commit "[\`$SHORT_SHA\`]($COMMIT_URL)" \
+            --arg run_link "[View Run]($RUN_URL)" \
+            --arg ts "$TIMESTAMP" \
+            '{
+              username: "kidthales CI/CD",
+              avatar_url: "https://github.com/kidthales.png",
+              embeds: [{
+                title: $title,
+                color: $color,
+                description: $desc,
+                url: $run_url,
+                author: {
+                  name: "kidthales Systems CI",
+                  icon_url: "https://github.com/kidthales.png"
                 },
-                "fields": [
-                  { "name": "Repository", "value": "\`$REPO_NAME\`", "inline": true },
-                  { "name": "Branch", "value": "\`$BRANCH_NAME\`", "inline": true },
-                  { "name": "Triggered By", "value": "@$ACTOR", "inline": true },
-                  { "name": "Workflow", "value": "$WORKFLOW_NAME", "inline": true },
-                  { "name": "Commit", "value": "[\`$SHORT_SHA\`]($SERVER_URL/$REPO_NAME/commit/$COMMIT_SHA)", "inline": true },
-                  { "name": "Run Details", "value": "[View Run]($RUN_URL)", "inline": true }
+                fields: [
+                  { name: "Repository", value: $repo, inline: true },
+                  { name: "Branch", value: $branch, inline: true },
+                  { name: "Triggered By", value: $actor, inline: true },
+                  { name: "Workflow", value: $workflow, inline: true },
+                  { name: "Commit", value: $commit, inline: true },
+                  { name: "Run Details", value: $run_link, inline: true }
                 ],
-                "footer": {
-                  "text": "kidthales Automation • Antigravity",
-                  "icon_url": "https://github.com/kidthales.png"
+                footer: {
+                  text: "kidthales Automation • Antigravity",
+                  icon_url: "https://github.com/kidthales.png"
                 },
-                "timestamp": "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-              }
-            ]
-          }
-          EOF
-          )
+                timestamp: $ts
+              }]
+            }')
 
           curl -s -S -X POST \
             -H "Content-Type: application/json" \
