@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Page weight and font asset size budgets. Thresholds calculated as ceil(measured * 1.25). Raising thresholds requires a PR with an architectural justification.",
+  "pageBudgets": {
+    "note": {
+      "measuredCompressedBytes": 10090,
+      "maxCompressedBytes": 12613,
+      "description": "Compressed HTML + CSS for note pages (measured from fixture build words/corrected-note)"
+    },
+    "essay": {
+      "measuredCompressedBytes": 9902,
+      "maxCompressedBytes": 12378,
+      "description": "Compressed HTML + CSS for essay pages (measured from fixture build words/valid-essay)"
+    },
+    "paper": {
+      "measuredCompressedBytes": 9919,
+      "maxCompressedBytes": 12399,
+      "description": "Compressed HTML + CSS for paper pages (measured from fixture build words/valid-paper)"
+    },
+    "index": {
+      "measuredCompressedBytes": 10079,
+      "maxCompressedBytes": 12599,
+      "description": "Compressed HTML + CSS for index and listing pages (measured from fixture build words/index)"
+    }
+  },
+  "assetBudgets": {
+    "totalWoff2Bytes": {
+      "measuredBytes": 108476,
+      "maxBytes": 135595,
+      "description": "Total uncompressed size of all woff2 font files in dist/fonts/"
+    }
+  }
+}
