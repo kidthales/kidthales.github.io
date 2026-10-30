@@ -1,5 +1,8 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import { getLatestPublishedEntries, isSuperseded, isCorrected } from '../lib/entries';
+
+const latestWords = await getLatestPublishedEntries(5);
 ---
 
 <BaseLayout
@@ -18,7 +21,19 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 
     <section aria-labelledby="latest-words-heading">
       <h2 id="latest-words-heading">Latest Words</h2>
-      <p>No published Entries yet.</p>
+      {latestWords.length === 0 ? (
+        <p>No published Entries yet.</p>
+      ) : (
+        <ul>
+          {latestWords.map((entry) => (
+            <li>
+              <a href={`/words/${entry.id}/`}>{entry.data.title}</a>
+              {isSuperseded(entry) && <span class="marker"> [Superseded]</span>}
+              {isCorrected(entry) && <span class="marker"> [Corrected]</span>}
+            </li>
+          ))}
+        </ul>
+      )}
       <p>
         <a href="/words/">Browse all Words &rarr;</a>
       </p>
