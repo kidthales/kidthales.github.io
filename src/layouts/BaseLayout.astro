@@ -1,0 +1,103 @@
+---
+import '@kidthales/picotol';
+import '../styles/theme.css';
+import '../styles/picotol-gaps.css';
+
+interface Props {
+  title: string;
+  description?: string;
+  type?: 'website' | 'article';
+  publishedTime?: string;
+}
+
+const {
+  title,
+  description,
+  type = 'website',
+  publishedTime,
+} = Astro.props;
+
+let pathname = Astro.url.pathname;
+if (!pathname.endsWith('/')) {
+  pathname += '/';
+}
+const canonicalURL = new URL(pathname, Astro.site ?? 'https://kidthales.github.io');
+
+const siteTitle = 'kidthales';
+const fullTitle = Astro.url.pathname === '/' ? title : `${title} | ${siteTitle}`;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+
+    <link rel="canonical" href={canonicalURL.href} />
+    {description && <meta name="description" content={description} />}
+
+    <!-- Preload body roman woff2 font (same origin, crossorigin) -->
+    <link
+      rel="preload"
+      href="/fonts/atkinson-hyperlegible-next-latin-wght-normal.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- Open Graph text metadata (no og:image) -->
+    <meta property="og:title" content={title} />
+    {description && <meta property="og:description" content={description} />}
+    <meta property="og:url" content={canonicalURL.href} />
+    <meta property="og:type" content={type} />
+    {type === 'article' && publishedTime && (
+      <meta property="article:published_time" content={publishedTime} />
+    )}
+
+    <!-- Twitter text metadata (no image) -->
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content={title} />
+    {description && <meta name="twitter:description" content={description} />}
+  </head>
+  <body>
+    <a href="#main" class="skip-to-content">Skip to content</a>
+    <header>
+      <nav aria-label="Main navigation">
+        <ul>
+          <li><strong><a href="/">kidthales</a></strong></li>
+        </ul>
+        <ul>
+          <li>
+            <a
+              href="/"
+              aria-current={Astro.url.pathname === '/' ? 'page' : undefined}
+            >Home</a>
+          </li>
+          <li>
+            <a
+              href="/words/"
+              aria-current={Astro.url.pathname.startsWith('/words') ? 'page' : undefined}
+            >Words</a>
+          </li>
+        </ul>
+      </nav>
+    </header>
+
+    <main id="main">
+      <slot />
+    </main>
+
+    <footer>
+      <p>
+        <small>
+          &copy; 2024&ndash;2026 kidthales &bull;
+          Content licensed under <a rel="license" href="/LICENSE-CONTENT">CC BY-ND 4.0</a> &bull;
+          <a href="/credits/">Credits</a>
+        </small>
+      </p>
+    </footer>
+  </body>
+</html>
