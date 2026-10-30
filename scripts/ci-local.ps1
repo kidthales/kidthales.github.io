@@ -121,6 +121,7 @@ try {
         } finally {
             $env:SITE_FIXTURES = ""
             $env:WORDS_FIXTURE_PATH = ""
+            $global:LASTEXITCODE = 0
         }
     }
     Write-EndGroup
@@ -128,6 +129,8 @@ try {
     Write-Host "`n====================================================" -ForegroundColor Green
     Write-Host " All CI Gates PASSED (typecheck, unit tests, prod build, fixture build, negative scenarios)" -ForegroundColor Green
     Write-Host "====================================================" -ForegroundColor Cyan
+    $global:LASTEXITCODE = 0
+    exit 0
 } finally {
     Pop-Location
 }
