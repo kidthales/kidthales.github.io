@@ -85,16 +85,26 @@ test('contrast-pairs: checkContrastPairs gate passes on project tokens and fails
 });
 
 test('axe: findHtmlFiles and filePathToRoute mapping', () => {
-  const distDir = path.join(process.cwd(), 'dist');
-  if (fs.existsSync(distDir)) {
-    const files = findHtmlFiles(distDir);
-    assert.ok(files.length > 0);
+  const tmpDir = path.join(process.cwd(), 'tests', 'fixtures', 'temp-route-mapping-test');
+  fs.mkdirSync(path.join(tmpDir, 'words'), { recursive: true });
+  fs.writeFileSync(path.join(tmpDir, 'index.html'), '<!doctype html><html></html>');
+  fs.writeFileSync(path.join(tmpDir, 'words', 'index.html'), '<!doctype html><html></html>');
+  fs.writeFileSync(path.join(tmpDir, '404.html'), '<!doctype html><html></html>');
 
-    const indexRoute = filePathToRoute(distDir, path.join(distDir, 'index.html'));
+  try {
+    const files = findHtmlFiles(tmpDir);
+    assert.equal(files.length, 3);
+
+    const indexRoute = filePathToRoute(tmpDir, path.join(tmpDir, 'index.html'));
     assert.equal(indexRoute, '/');
 
-    const wordsRoute = filePathToRoute(distDir, path.join(distDir, 'words', 'index.html'));
+    const wordsRoute = filePathToRoute(tmpDir, path.join(tmpDir, 'words', 'index.html'));
     assert.equal(wordsRoute, '/words/');
+
+    const notFoundRoute = filePathToRoute(tmpDir, path.join(tmpDir, '404.html'));
+    assert.equal(notFoundRoute, '/404.html');
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
   }
 });
 
