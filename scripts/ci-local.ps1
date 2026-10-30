@@ -100,9 +100,11 @@ try {
         @{ Id = "N2"; Dir = "n2-dangling-superseded-by"; Pattern = "Dangling reference.*non-existent-target" },
         @{ Id = "N3"; Dir = "n3-wrong-kind"; Pattern = "kind.*Invalid option" },
         @{ Id = "N4"; Dir = "n4-published-without-published-on"; Pattern = "Published entries require published_on" },
+        @{ Id = "N5"; Dir = "n5-reserved-slug"; Pattern = "Reserved slug error" },
         @{ Id = "N6"; Dir = "n6-unknown-form"; Pattern = "Did not match union" },
         @{ Id = "N7"; Dir = "n7-superseded-by-draft"; Pattern = "target is a draft" },
-        @{ Id = "N8"; Dir = "n8-supersede-cycle"; Pattern = "Supersede cycle detected" }
+        @{ Id = "N8"; Dir = "n8-supersede-cycle"; Pattern = "Supersede cycle detected" },
+        @{ Id = "N9"; Dir = "n9-bad-slug-grammar"; Pattern = "Invalid slug grammar error" }
     )
 
     foreach ($sc in $scenarios) {
