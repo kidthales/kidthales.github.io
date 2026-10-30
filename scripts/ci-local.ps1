@@ -63,37 +63,71 @@ try {
     }
     Write-EndGroup
 
-    # 3. Production Build: astro build (fails if SITE_FIXTURES is set)
-    Write-Group "Production Build (astro build)"
-    if ($env:SITE_FIXTURES) {
+    $prodLogFile = Join-Path ([System.IO.Path]::GetTempPath()) "astro-build-prod-$PID.log"
+    $fixtureLogFile = Join-Path ([System.IO.Path]::GetTempPath()) "astro-build-fixture-$PID.log"
+
+    try {
+        # 3. Production Build: astro build (fails if SITE_FIXTURES is set)
+        Write-Group "Production Build (astro build)"
+        if ($env:SITE_FIXTURES) {
+            Write-EndGroup
+            throw "CI Step Failed: Production build cannot run with SITE_FIXTURES set."
+        }
+        Write-Host "Running: npm run build..." -ForegroundColor Yellow
+        $prodOutput = & npm run build 2>&1 | Out-String
+        $prodExitCode = $LASTEXITCODE
+        Write-Host $prodOutput
+        Set-Content -Path $prodLogFile -Value $prodOutput -Encoding UTF8
+        if ($prodExitCode -ne 0) {
+            Write-EndGroup
+            throw "CI Step Failed: astro build returned exit code $prodExitCode"
+        }
         Write-EndGroup
-        throw "CI Step Failed: Production build cannot run with SITE_FIXTURES set."
+
+        # 4. Fixture Build: astro build with SITE_FIXTURES=1
+        Write-Group "Fixture Build (SITE_FIXTURES=1)"
+        Write-Host "Running: astro build with SITE_FIXTURES=1..." -ForegroundColor Yellow
+        $env:SITE_FIXTURES = "1"
+        $env:WORDS_FIXTURE_PATH = ""
+        try {
+            $fixtureOutput = & npx astro build 2>&1 | Out-String
+            $fixtureExitCode = $LASTEXITCODE
+            Write-Host $fixtureOutput
+            Set-Content -Path $fixtureLogFile -Value $fixtureOutput -Encoding UTF8
+            if ($fixtureExitCode -ne 0) {
+                throw "CI Step Failed: Fixture build returned exit code $fixtureExitCode"
+            }
+        } finally {
+            $env:SITE_FIXTURES = ""
+            $env:WORDS_FIXTURE_PATH = ""
+        }
+        Write-EndGroup
+
+        # 5. Diagnostics Gate: validate production + fixture build logs against allowlist
+        Write-Group "Diagnostics Gate (scripts/gates/diagnostics.ts)"
+        Write-Host "Running: node --experimental-strip-types scripts/gates/diagnostics.ts..." -ForegroundColor Yellow
+        & node --experimental-strip-types scripts/gates/diagnostics.ts --log $prodLogFile --log $fixtureLogFile
+        if ($LASTEXITCODE -ne 0) {
+            Write-EndGroup
+            throw "CI Step Failed: Diagnostics gate returned exit code $LASTEXITCODE"
+        }
+        Write-EndGroup
+    } finally {
+        if (Test-Path $prodLogFile) { Remove-Item $prodLogFile -Force -ErrorAction SilentlyContinue }
+        if (Test-Path $fixtureLogFile) { Remove-Item $fixtureLogFile -Force -ErrorAction SilentlyContinue }
     }
-    Write-Host "Running: npm run build..." -ForegroundColor Yellow
-    & npm run build
+
+    # 6. Errata Guard Gate: validate src/content/words/*.md against BaseRef
+    Write-Group "Errata Guard Gate (scripts/gates/errata-guard.ts)"
+    Write-Host "Running: node --experimental-strip-types scripts/gates/errata-guard.ts --base-ref $BaseRef..." -ForegroundColor Yellow
+    & node --experimental-strip-types scripts/gates/errata-guard.ts --base-ref $BaseRef
     if ($LASTEXITCODE -ne 0) {
         Write-EndGroup
-        throw "CI Step Failed: astro build returned exit code $LASTEXITCODE"
+        throw "CI Step Failed: errata-guard returned exit code $LASTEXITCODE"
     }
     Write-EndGroup
 
-    # 4. Fixture Build: astro build with SITE_FIXTURES=1
-    Write-Group "Fixture Build (SITE_FIXTURES=1)"
-    Write-Host "Running: astro build with SITE_FIXTURES=1..." -ForegroundColor Yellow
-    $env:SITE_FIXTURES = "1"
-    $env:WORDS_FIXTURE_PATH = ""
-    try {
-        & npx astro build
-        if ($LASTEXITCODE -ne 0) {
-            throw "CI Step Failed: Fixture build returned exit code $LASTEXITCODE"
-        }
-    } finally {
-        $env:SITE_FIXTURES = ""
-        $env:WORDS_FIXTURE_PATH = ""
-    }
-    Write-EndGroup
-
-    # 5. Negative Scenarios Gate (invalid fixtures)
+    # 7. Negative Scenarios Gate (invalid fixtures)
     Write-Group "Negative Scenarios Gate (invalid fixtures)"
     $scenarios = @(
         @{ Id = "N1"; Dir = "n1-essay-missing-description"; Pattern = "description.*Required" },
@@ -129,7 +163,7 @@ try {
     Write-EndGroup
 
     Write-Host "`n====================================================" -ForegroundColor Green
-    Write-Host " All CI Gates PASSED (typecheck, unit tests, prod build, fixture build, negative scenarios)" -ForegroundColor Green
+    Write-Host " All CI Gates PASSED (typecheck, unit tests, prod build, fixture build, diagnostics, errata-guard, negative scenarios)" -ForegroundColor Green
     Write-Host "====================================================" -ForegroundColor Cyan
     $global:LASTEXITCODE = 0
     exit 0
