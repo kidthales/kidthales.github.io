@@ -112,12 +112,82 @@ try {
             throw "CI Step Failed: Diagnostics gate returned exit code $LASTEXITCODE"
         }
         Write-EndGroup
+
+        # 6. Zero-JS Gate: ensure 0 JS and no forbidden <script> in output
+        Write-Group "Zero-JS Gate (scripts/gates/zero-js.ts)"
+        Write-Host "Running: node --experimental-strip-types scripts/gates/zero-js.ts dist..." -ForegroundColor Yellow
+        & node --experimental-strip-types scripts/gates/zero-js.ts dist
+        if ($LASTEXITCODE -ne 0) {
+            Write-EndGroup
+            throw "CI Step Failed: Zero-JS gate returned exit code $LASTEXITCODE"
+        }
+        Write-EndGroup
+
+        # 7. Origin Gate: scan resource-loading attributes for non-same-origin URLs
+        Write-Group "Origin Gate (scripts/gates/origins.ts)"
+        Write-Host "Running: node --experimental-strip-types scripts/gates/origins.ts dist..." -ForegroundColor Yellow
+        & node --experimental-strip-types scripts/gates/origins.ts dist
+        if ($LASTEXITCODE -ne 0) {
+            Write-EndGroup
+            throw "CI Step Failed: Origin gate returned exit code $LASTEXITCODE"
+        }
+        Write-EndGroup
+
+        # 8. Internal Links & Anchors Gate: verify internal links and trailing slashes
+        Write-Group "Internal Links & Anchors Gate (scripts/gates/links.ts)"
+        Write-Host "Running: node --experimental-strip-types scripts/gates/links.ts dist..." -ForegroundColor Yellow
+        & node --experimental-strip-types scripts/gates/links.ts dist
+        if ($LASTEXITCODE -ne 0) {
+            Write-EndGroup
+            throw "CI Step Failed: Internal Links & Anchors gate returned exit code $LASTEXITCODE"
+        }
+        Write-EndGroup
+
+        # 9. Canonical & Sitemap Gate: check canonical headers and sitemap integrity
+        Write-Group "Canonical & Sitemap Gate (scripts/gates/canonical-sitemap.ts)"
+        Write-Host "Running: node --experimental-strip-types scripts/gates/canonical-sitemap.ts dist..." -ForegroundColor Yellow
+        & node --experimental-strip-types scripts/gates/canonical-sitemap.ts dist
+        if ($LASTEXITCODE -ne 0) {
+            Write-EndGroup
+            throw "CI Step Failed: Canonical & Sitemap gate returned exit code $LASTEXITCODE"
+        }
+        Write-EndGroup
+
+        # 10. Weight Budgets Gate: check compressed HTML/CSS and font budgets
+        Write-Group "Weight Budgets Gate (scripts/gates/budgets.ts)"
+        Write-Host "Running: node --experimental-strip-types scripts/gates/budgets.ts dist budgets.json..." -ForegroundColor Yellow
+        & node --experimental-strip-types scripts/gates/budgets.ts dist budgets.json
+        if ($LASTEXITCODE -ne 0) {
+            Write-EndGroup
+            throw "CI Step Failed: Weight Budgets gate returned exit code $LASTEXITCODE"
+        }
+        Write-EndGroup
     } finally {
         if (Test-Path $prodLogFile) { Remove-Item $prodLogFile -Force -ErrorAction SilentlyContinue }
         if (Test-Path $fixtureLogFile) { Remove-Item $fixtureLogFile -Force -ErrorAction SilentlyContinue }
     }
 
-    # 6. Errata Guard Gate: validate src/content/words/*.md against BaseRef
+    # 11. CSS Lints: token colours, theme.css rules, picotol-gaps citations
+    Write-Group "CSS Lints (scripts/gates/css-lint.ts)"
+    Write-Host "Running: node --experimental-strip-types scripts/gates/css-lint.ts src/styles..." -ForegroundColor Yellow
+    & node --experimental-strip-types scripts/gates/css-lint.ts src/styles
+    if ($LASTEXITCODE -ne 0) {
+        Write-EndGroup
+        throw "CI Step Failed: CSS Lints gate returned exit code $LASTEXITCODE"
+    }
+    Write-EndGroup
+
+    # 12. Integrity Lints: exact semver picotol and font credits completeness
+    Write-Group "Integrity Lints (scripts/gates/integrity-lint.ts)"
+    Write-Host "Running: node --experimental-strip-types scripts/gates/integrity-lint.ts ...." -ForegroundColor Yellow
+    & node --experimental-strip-types scripts/gates/integrity-lint.ts .
+    if ($LASTEXITCODE -ne 0) {
+        Write-EndGroup
+        throw "CI Step Failed: Integrity Lints gate returned exit code $LASTEXITCODE"
+    }
+    Write-EndGroup
+
+    # 13. Errata Guard Gate: validate src/content/words/*.md against BaseRef
     Write-Group "Errata Guard Gate (scripts/gates/errata-guard.ts)"
     Write-Host "Running: node --experimental-strip-types scripts/gates/errata-guard.ts --base-ref $BaseRef..." -ForegroundColor Yellow
     & node --experimental-strip-types scripts/gates/errata-guard.ts --base-ref $BaseRef
@@ -127,7 +197,7 @@ try {
     }
     Write-EndGroup
 
-    # 7. Negative Scenarios Gate (invalid fixtures)
+    # 14. Negative Scenarios Gate (invalid fixtures)
     Write-Group "Negative Scenarios Gate (invalid fixtures)"
     $scenarios = @(
         @{ Id = "N1"; Dir = "n1-essay-missing-description"; Pattern = "description.*Required" },
