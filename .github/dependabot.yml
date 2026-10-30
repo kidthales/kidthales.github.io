@@ -2,29 +2,22 @@ version: 2
 updates:
   - package-ecosystem: npm
     directory: /
+    target-branch: next
     schedule:
-      interval: cron
-      cronjob: '0 8 * * SAT'
-      timezone: Canada/Pacific
-    versioning-strategy: increase-if-necessary
-    open-pull-requests-limit: 50
+      interval: weekly
     groups:
-      lint:
+      all-dependencies:
         patterns:
-          - '@eslint/eslintrc'
-          - '@typescript-eslint/*'
-          - eslint
-          - eslint-config-prettier
-          - eslint-plugin-prettier
-          - lint-staged
-          - prettier
-      babel:
-        patterns:
-          - '@babel/*'
+          - "*"
+    ignore:
+      - dependency-name: "@kidthales/picotol"
 
   - package-ecosystem: github-actions
     directory: /
+    target-branch: next
     schedule:
-      interval: cron
-      cronjob: '0 8 * * SAT'
-      timezone: Canada/Pacific
+      interval: weekly
+    groups:
+      all-dependencies:
+        patterns:
+          - "*"
