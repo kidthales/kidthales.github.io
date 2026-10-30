@@ -1,4 +1,6 @@
 import type { CollectionEntry } from 'astro:content';
+import { validateEntrySlugs } from '../reserved-slugs.ts';
+import type { EntryForm } from './schema.ts';
 
 export type WordEntry = CollectionEntry<'words'>;
 
@@ -6,11 +8,14 @@ export interface ValidationEntry {
   id: string;
   data: {
     title: string;
+    form?: EntryForm;
     draft?: boolean;
     published_on?: Date;
     withdrawn_on?: Date;
+    expunged_on?: Date;
+    withdrawal_note?: string;
     superseded_by?: unknown;
-    errata?: Array<{ on: Date; class: 'typo' | 'correction' | 'clarification'; note: string }>;
+    errata?: Array<{ on: Date; class: 'typo' | 'correction' | 'clarification'; note: string; fields?: string[] }>;
   };
 }
 
@@ -87,6 +92,7 @@ export function validateSupersededBy<T extends ValidationEntry>(entries: T[]): v
 export async function getAllEntries(): Promise<WordEntry[]> {
   const { getCollection } = await import('astro:content');
   const entries = await getCollection('words');
+  validateEntrySlugs(entries);
   validateSupersededBy(entries);
   return entries;
 }
@@ -106,6 +112,14 @@ export async function getPublishedEntries(): Promise<WordEntry[]> {
 }
 
 /**
+ * Returns published entries filtered by form, sorted newest first.
+ */
+export async function getPublishedEntriesByForm(form: EntryForm): Promise<WordEntry[]> {
+  const published = await getPublishedEntries();
+  return published.filter((entry) => entry.data.form === form);
+}
+
+/**
  * Returns latest N published entries.
  */
 export async function getLatestPublishedEntries(limit: number = 5): Promise<WordEntry[]> {
@@ -119,4 +133,64 @@ export function isSuperseded(entry: WordEntry | ValidationEntry): boolean {
 
 export function isCorrected(entry: WordEntry | ValidationEntry): boolean {
   return Boolean(entry.data.errata && entry.data.errata.some((e) => e.class === 'correction'));
+}
+
+export const FORM_LABELS: Record<EntryForm, string> = {
+  note: 'Note',
+  essay: 'Essay',
+  paper: 'Paper',
+};
+
+export const FORM_GLYPHS: Record<EntryForm, string> = {
+  note: '✎',
+  essay: '✒',
+  paper: '📄',
+};
+
+export function getSuccessor<T extends ValidationEntry>(entry: T, allEntries: T[]): T | undefined {
+  if (!entry.data.superseded_by) return undefined;
+  const targetId =
+    typeof entry.data.superseded_by === 'object' && entry.data.superseded_by !== null && 'id' in entry.data.superseded_by
+      ? String((entry.data.superseded_by as { id: unknown }).id)
+      : String(entry.data.superseded_by);
+  return allEntries.find((e) => e.id === targetId);
+}
+
+export function getPredecessors<T extends ValidationEntry>(entry: T, allEntries: T[]): T[] {
+  return allEntries.filter((candidate) => {
+    if (!candidate.data.superseded_by) return false;
+    const targetId =
+      typeof candidate.data.superseded_by === 'object' && candidate.data.superseded_by !== null && 'id' in candidate.data.superseded_by
+        ? String((candidate.data.superseded_by as { id: unknown }).id)
+        : String(candidate.data.superseded_by);
+    return targetId === entry.id;
+  });
+}
+
+export function getErrataCalloutText(
+  errata: Array<{ class: 'typo' | 'correction' | 'clarification' }> | undefined
+): string | null {
+  if (!errata || errata.length === 0) return null;
+  const corrections = errata.filter((e) => e.class === 'correction').length;
+  const clarifications = errata.filter((e) => e.class === 'clarification').length;
+
+  if (corrections === 0 && clarifications === 0) {
+    return null;
+  }
+
+  const parts: string[] = [];
+  if (corrections > 0) {
+    parts.push(`Corrected ${corrections}×`);
+  }
+  if (clarifications > 0) {
+    parts.push(corrections > 0 ? `clarified ${clarifications}×` : `Clarified ${clarifications}×`);
+  }
+
+  return parts.join(' · ');
+}
+
+export function formatDate(date: Date | string | undefined): string {
+  if (!date) return '';
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return d.toISOString().slice(0, 10);
 }

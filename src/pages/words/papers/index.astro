@@ -1,0 +1,63 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import {
+  getPublishedEntriesByForm,
+  isSuperseded,
+  isCorrected,
+  formatDate,
+  FORM_LABELS,
+  FORM_GLYPHS,
+} from '../../../lib/entries';
+
+const papers = await getPublishedEntriesByForm('paper');
+const label = FORM_LABELS.paper;
+const glyph = FORM_GLYPHS.paper;
+---
+
+<BaseLayout
+  title="Papers | Words"
+  description="Technical specifications, research papers, and whitepapers by kidthales."
+>
+  <article class="prose">
+    <header>
+      <h1><span aria-hidden="true">{glyph}</span> {label}s</h1>
+      <p>
+        Technical specifications, formal reports, and whitepapers on systems architecture and protocols.
+      </p>
+
+      <nav aria-label="Words sections" class="words-nav">
+        <ul>
+          <li><a href="/words/">All</a></li>
+          <li><a href="/words/notes/">Notes</a></li>
+          <li><a href="/words/essays/">Essays</a></li>
+          <li><a href="/words/papers/" aria-current="page">Papers</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <section aria-labelledby="papers-heading">
+      <h2 id="papers-heading" class="sr-only">Papers</h2>
+      {papers.length === 0 ? (
+        <p>No published Papers yet.</p>
+      ) : (
+        <ul class="entry-list">
+          {papers.map((entry) => (
+            <li>
+              <span class="entry-form">
+                <span aria-hidden="true">{glyph}</span> {label}
+              </span>
+              {' '}&bull;{' '}
+              <time datetime={formatDate(entry.data.published_on)}>
+                {formatDate(entry.data.published_on)}
+              </time>
+              {' '}&bull;{' '}
+              <a href={`/words/${entry.id}/`}>{entry.data.title}</a>
+              {isSuperseded(entry) && <span class="marker"> [Superseded]</span>}
+              {isCorrected(entry) && <span class="marker"> [Corrected]</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  </article>
+</BaseLayout>
