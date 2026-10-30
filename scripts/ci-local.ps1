@@ -53,7 +53,17 @@ try {
     }
     Write-EndGroup
 
-    # 2. Unit Tests: node test runner
+    # 2. Static Contrast Pairs Gate: check tokens against WCAG AA 4.5:1
+    Write-Group "Static Contrast Pairs Gate (scripts/gates/contrast-pairs.ts)"
+    Write-Host "Running: node --experimental-strip-types scripts/gates/contrast-pairs.ts..." -ForegroundColor Yellow
+    & node --experimental-strip-types scripts/gates/contrast-pairs.ts
+    if ($LASTEXITCODE -ne 0) {
+        Write-EndGroup
+        throw "CI Step Failed: Contrast pairs gate returned exit code $LASTEXITCODE"
+    }
+    Write-EndGroup
+
+    # 3. Unit Tests: node test runner
     Write-Group "Unit Tests (node --test)"
     Write-Host "Running: npm test..." -ForegroundColor Yellow
     & npm test
@@ -153,7 +163,23 @@ try {
         }
         Write-EndGroup
 
-        # 10. Weight Budgets Gate: check compressed HTML/CSS and font budgets
+        # 11. Accessibility Gate: WCAG 2.2 A/AA axe audit on fixture build
+        Write-Group "Accessibility Gate (scripts/gates/axe.ts)"
+        Write-Host "Running: node --experimental-strip-types scripts/gates/axe.ts dist..." -ForegroundColor Yellow
+        & node --experimental-strip-types scripts/gates/axe.ts dist
+        if ($LASTEXITCODE -ne 0) {
+            Write-EndGroup
+            throw "CI Step Failed: Accessibility gate returned exit code $LASTEXITCODE"
+        }
+        Write-EndGroup
+
+        # 12. Accessibility & Performance Reports: AAA body contrast and CLS (non-failing)
+        Write-Group "Accessibility & Performance Reports (scripts/gates/axe.ts --report)"
+        Write-Host "Running: node --experimental-strip-types scripts/gates/axe.ts --report dist..." -ForegroundColor Yellow
+        & node --experimental-strip-types scripts/gates/axe.ts --report dist
+        Write-EndGroup
+
+        # 13. Weight Budgets Gate: check compressed HTML/CSS and font budgets
         Write-Group "Weight Budgets Gate (scripts/gates/budgets.ts)"
         Write-Host "Running: node --experimental-strip-types scripts/gates/budgets.ts dist budgets.json..." -ForegroundColor Yellow
         & node --experimental-strip-types scripts/gates/budgets.ts dist budgets.json
