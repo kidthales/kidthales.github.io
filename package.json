@@ -22,7 +22,10 @@
   },
   "devDependencies": {
     "@astrojs/check": "0.9.12",
+    "@playwright/test": "1.58.2",
     "@types/node": "26.6.6",
+    "axe-core": "4.10.2",
+    "playwright": "1.58.2",
     "typescript": "5.9.3"
   }
 }
