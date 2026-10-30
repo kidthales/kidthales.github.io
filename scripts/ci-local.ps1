@@ -53,8 +53,22 @@ try {
     }
     Write-EndGroup
 
-    # 2. Production Build: astro build
+    # 2. Unit Tests: node test runner
+    Write-Group "Unit Tests (node --test)"
+    Write-Host "Running: npm test..." -ForegroundColor Yellow
+    & npm test
+    if ($LASTEXITCODE -ne 0) {
+        Write-EndGroup
+        throw "CI Step Failed: npm test returned exit code $LASTEXITCODE"
+    }
+    Write-EndGroup
+
+    # 3. Production Build: astro build (fails if SITE_FIXTURES is set)
     Write-Group "Production Build (astro build)"
+    if ($env:SITE_FIXTURES) {
+        Write-EndGroup
+        throw "CI Step Failed: Production build cannot run with SITE_FIXTURES set."
+    }
     Write-Host "Running: npm run build..." -ForegroundColor Yellow
     & npm run build
     if ($LASTEXITCODE -ne 0) {
@@ -63,9 +77,60 @@ try {
     }
     Write-EndGroup
 
+    # 4. Fixture Build: astro build with SITE_FIXTURES=1
+    Write-Group "Fixture Build (SITE_FIXTURES=1)"
+    Write-Host "Running: astro build with SITE_FIXTURES=1..." -ForegroundColor Yellow
+    $env:SITE_FIXTURES = "1"
+    $env:WORDS_FIXTURE_PATH = ""
+    try {
+        & npx astro build
+        if ($LASTEXITCODE -ne 0) {
+            throw "CI Step Failed: Fixture build returned exit code $LASTEXITCODE"
+        }
+    } finally {
+        $env:SITE_FIXTURES = ""
+        $env:WORDS_FIXTURE_PATH = ""
+    }
+    Write-EndGroup
+
+    # 5. Negative Scenarios Gate (invalid fixtures)
+    Write-Group "Negative Scenarios Gate (invalid fixtures)"
+    $scenarios = @(
+        @{ Id = "N1"; Dir = "n1-essay-missing-description"; Pattern = "description.*Required" },
+        @{ Id = "N2"; Dir = "n2-dangling-superseded-by"; Pattern = "Dangling reference.*non-existent-target" },
+        @{ Id = "N3"; Dir = "n3-wrong-kind"; Pattern = "kind.*Invalid option" },
+        @{ Id = "N4"; Dir = "n4-published-without-published-on"; Pattern = "Published entries require published_on" },
+        @{ Id = "N6"; Dir = "n6-unknown-form"; Pattern = "Did not match union" },
+        @{ Id = "N7"; Dir = "n7-superseded-by-draft"; Pattern = "target is a draft" },
+        @{ Id = "N8"; Dir = "n8-supersede-cycle"; Pattern = "Supersede cycle detected" }
+    )
+
+    foreach ($sc in $scenarios) {
+        Write-Host "Testing negative scenario $($sc.Id) ($($sc.Dir))..." -ForegroundColor Yellow
+        $env:SITE_FIXTURES = "1"
+        $env:WORDS_FIXTURE_PATH = "tests/fixtures/invalid/$($sc.Dir)"
+        try {
+            $output = & npx astro build 2>&1 | Out-String
+            if ($LASTEXITCODE -eq 0) {
+                throw "Negative scenario $($sc.Id) unexpectedly passed (expected failure matching '$($sc.Pattern)')"
+            }
+            if ($output -notmatch $sc.Pattern) {
+                throw "Negative scenario $($sc.Id) failed with unexpected error. Expected match for '$($sc.Pattern)'. Output:`n$output"
+            }
+            Write-Host "  Scenario $($sc.Id) failed as expected matching pattern '$($sc.Pattern)'" -ForegroundColor Green
+        } finally {
+            $env:SITE_FIXTURES = ""
+            $env:WORDS_FIXTURE_PATH = ""
+            $global:LASTEXITCODE = 0
+        }
+    }
+    Write-EndGroup
+
     Write-Host "`n====================================================" -ForegroundColor Green
-    Write-Host " All CI Gates PASSED (astro check, astro build)" -ForegroundColor Green
+    Write-Host " All CI Gates PASSED (typecheck, unit tests, prod build, fixture build, negative scenarios)" -ForegroundColor Green
     Write-Host "====================================================" -ForegroundColor Cyan
+    $global:LASTEXITCODE = 0
+    exit 0
 } finally {
     Pop-Location
 }
