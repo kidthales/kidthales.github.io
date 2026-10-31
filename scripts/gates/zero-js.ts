@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { WorksIsland } from './islands.ts';
+import { validateManifest, type WorksIsland } from './islands.ts';
 
 export interface ZeroJsResult {
   ok: boolean;
@@ -33,10 +33,16 @@ export function checkZeroJs(
   const errors: string[] = [];
   let htmlFilesChecked = 0;
 
+  // Validate manifest structure and routes
+  const manifestErrors = validateManifest(manifest);
+  for (const merr of manifestErrors) {
+    errors.push(`Manifest validation error for route "${merr.route}": ${merr.error}`);
+  }
+
   if (!fs.existsSync(distDir)) {
     return {
       ok: false,
-      errors: [`distDir does not exist: ${distDir}`],
+      errors: [`distDir does not exist: ${distDir}`, ...errors],
       htmlFilesChecked: 0,
     };
   }

@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { WorksIsland } from './islands.ts';
+import { validateManifest, type WorksIsland } from './islands.ts';
 import { routeFromHtmlPath } from './zero-js.ts';
 
 export interface OriginCheckResult {
@@ -188,10 +188,16 @@ export function checkOrigins(
   const errors: string[] = [];
   let resourcesChecked = 0;
 
+  // Validate manifest structure and routes
+  const manifestErrors = validateManifest(manifest);
+  for (const merr of manifestErrors) {
+    errors.push(`Manifest validation error for route "${merr.route}": ${merr.error}`);
+  }
+
   if (!fs.existsSync(distDir)) {
     return {
       ok: false,
-      errors: [`distDir does not exist: ${distDir}`],
+      errors: [`distDir does not exist: ${distDir}`, ...errors],
       resourcesChecked: 0,
     };
   }
