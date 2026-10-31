@@ -6,6 +6,7 @@ export interface AllowlistEntry {
   pattern: string;
   issue: string;
   reason?: string;
+  optional?: boolean;
 }
 
 export interface DiagnosticsResult {
@@ -97,7 +98,7 @@ export function validateDiagnosticsLogs(
   }
 
   for (const item of compiledAllowlist) {
-    if (!matchedIndices.has(item.index)) {
+    if (!item.entry.optional && !matchedIndices.has(item.index)) {
       errors.push(
         `Stale diagnostics allowlist entry at index ${item.index} (${item.entry.issue}): pattern "${item.entry.pattern}" matched no [WARN] lines.`
       );

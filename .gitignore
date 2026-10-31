@@ -7,6 +7,9 @@ dist/
 # Astro cache & generated types
 .astro/
 
+# Local CI receipts & history
+.ci-local/
+
 # IDE & Editor files
 .idea/
 .vscode/

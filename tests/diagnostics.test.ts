@@ -110,6 +110,26 @@ test('validateDiagnosticsLogs fails when an allowlist entry matches nothing (sta
   assert.ok(result.errors.some((e) => e.includes('Stale diagnostics allowlist entry')));
 });
 
+test('validateDiagnosticsLogs does not fail when an optional allowlist entry matches nothing', () => {
+  const allowlist: AllowlistEntry[] = [
+    {
+      pattern: '\\[WARN\\] required warning',
+      issue: '#441',
+    },
+    {
+      pattern: '\\[WARN\\] optional warning that did not fire',
+      issue: '#441',
+      optional: true,
+    },
+  ];
+  const log = '10:52:01 [WARN] required warning\n10:52:02 [build] Complete!';
+
+  const result = validateDiagnosticsLogs([log], allowlist);
+  assert.strictEqual(result.ok, true);
+  assert.deepStrictEqual(result.errors, []);
+  assert.deepStrictEqual(result.matchedAllowlistIndices, [0]);
+});
+
 test('validateDiagnosticsLogs fails if Contrast/AAA reports print into the astro build log', () => {
   const log = [
     '10:52:01 [build] Complete!',
