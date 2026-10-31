@@ -110,6 +110,44 @@ test('zero-js gate: fails when declared route has no script (stale declaration)'
   assert.match(result.errors[0], /stale declaration/);
 });
 
+test('zero-js gate: rejects invalid manifest (non-/works/** route)', (t) => {
+  const tmpDir = path.join(process.cwd(), 'tests', 'fixtures', 'temp-zero-js-manifest-invalid-route');
+  fs.mkdirSync(tmpDir, { recursive: true });
+  t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
+
+  const invalidManifest: WorksIsland[] = [
+    {
+      route: '/words/invalid-route/',
+      reason: 'Interactive essay outside /works/**',
+      js: false,
+      origins: [],
+    },
+  ];
+
+  const result = checkZeroJs(tmpDir, invalidManifest);
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((err) => err.includes('must be under /works/**')));
+});
+
+test('zero-js gate: rejects invalid manifest (invalid origin URL)', (t) => {
+  const tmpDir = path.join(process.cwd(), 'tests', 'fixtures', 'temp-zero-js-manifest-invalid-origin');
+  fs.mkdirSync(tmpDir, { recursive: true });
+  t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
+
+  const invalidManifest: WorksIsland[] = [
+    {
+      route: '/works/demo/',
+      reason: 'Demo island with malformed origin',
+      js: false,
+      origins: [{ origin: 'not-a-valid-url', reason: 'bad url' }],
+    },
+  ];
+
+  const result = checkZeroJs(tmpDir, invalidManifest);
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((err) => err.includes('Invalid origin URL')));
+});
+
 test('origins gate: detects unauthorized third-party resource attributes', () => {
   const html = `
     <html>
@@ -161,6 +199,44 @@ test('origins gate: js grant never grants an origin', (t) => {
   const result = checkOrigins(tmpDir, manifest);
   assert.equal(result.ok, false);
   assert.match(result.errors[0], /Unauthorized third-party origin "https:\/\/api\.mapbox\.com"/);
+});
+
+test('origins gate: rejects invalid manifest (non-/works/** route)', (t) => {
+  const tmpDir = path.join(process.cwd(), 'tests', 'fixtures', 'temp-origins-manifest-invalid-route');
+  fs.mkdirSync(tmpDir, { recursive: true });
+  t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
+
+  const invalidManifest: WorksIsland[] = [
+    {
+      route: '/words/invalid-route/',
+      reason: 'Route outside /works/**',
+      js: false,
+      origins: [],
+    },
+  ];
+
+  const result = checkOrigins(tmpDir, invalidManifest);
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((err) => err.includes('must be under /works/**')));
+});
+
+test('origins gate: rejects invalid manifest (invalid origin URL)', (t) => {
+  const tmpDir = path.join(process.cwd(), 'tests', 'fixtures', 'temp-origins-manifest-invalid-origin');
+  fs.mkdirSync(tmpDir, { recursive: true });
+  t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
+
+  const invalidManifest: WorksIsland[] = [
+    {
+      route: '/works/demo/',
+      reason: 'Demo island with malformed origin',
+      js: false,
+      origins: [{ origin: 'not-a-valid-url', reason: 'bad url' }],
+    },
+  ];
+
+  const result = checkOrigins(tmpDir, invalidManifest);
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((err) => err.includes('Invalid origin URL')));
 });
 
 test('internal links gate: verifies anchors and enforces trailing slash', () => {

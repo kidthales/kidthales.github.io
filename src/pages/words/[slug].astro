@@ -43,6 +43,8 @@ const formLabel = FORM_LABELS[form];
 const formGlyph = FORM_GLYPHS[form];
 
 const GITHUB_REPO_URL = 'https://github.com/kidthales/kidthales.github.io';
+// Note: /commits/main/ intentionally targets the post-cutover production trunk,
+// where published Words content will reside once the rebuild on 'next' is promoted to production.
 const sourceHistoryUrl = `${GITHUB_REPO_URL}/commits/main/src/content/words/${entry.id}.md`;
 
 // Render body only for non-withdrawn entries
