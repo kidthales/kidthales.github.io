@@ -1,0 +1,14 @@
+/**
+ * Picotol Gaps Ledger
+ *
+ * This stylesheet serves as a strictly bounded ledger for design-system gaps
+ * and targeted overrides to @kidthales/picotol.
+ *
+ * CITATION RULE:
+ * Every style rule or block added to this file MUST include an upstream issue citation
+ * in the comment header (e.g., `kidthales/picotol#N: <description>`).
+ * Uncited or speculative styling is prohibited. File only gaps actually encountered
+ * in the project, accompanied by a corresponding upstream issue.
+ */
+
+@layer gaps;

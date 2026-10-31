@@ -1,0 +1,210 @@
+---
+import { render } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import {
+  getAllEntries,
+  getSuccessor,
+  getPredecessors,
+  getErrataCalloutText,
+  formatDate,
+  FORM_LABELS,
+  FORM_GLYPHS,
+  type WordEntry,
+} from '../../lib/entries';
+
+export async function getStaticPaths() {
+  const allEntries = await getAllEntries();
+  // Filter out drafts: drafts are private and unrendered in static builds
+  const renderable = allEntries.filter((entry) => entry.data.draft !== true);
+
+  return renderable.map((entry) => ({
+    params: { slug: entry.id },
+    props: {
+      entry,
+      allEntries,
+    },
+  }));
+}
+
+interface Props {
+  entry: WordEntry;
+  allEntries: WordEntry[];
+}
+
+const { entry, allEntries } = Astro.props;
+
+const isWithdrawn = Boolean(entry.data.withdrawn_on);
+const publishedDate = formatDate(entry.data.published_on);
+const withdrawnDate = formatDate(entry.data.withdrawn_on);
+const expungedDate = formatDate(entry.data.expunged_on);
+
+const form = entry.data.form;
+const formLabel = FORM_LABELS[form];
+const formGlyph = FORM_GLYPHS[form];
+
+const GITHUB_REPO_URL = 'https://github.com/kidthales/kidthales.github.io';
+// Note: /commits/main/ intentionally targets the post-cutover production trunk,
+// where published Words content will reside once the rebuild on 'next' is promoted to production.
+const sourceHistoryUrl = `${GITHUB_REPO_URL}/commits/main/src/content/words/${entry.id}.md`;
+
+// Render body only for non-withdrawn entries
+let Content: any = null;
+if (!isWithdrawn) {
+  const rendered = await render(entry);
+  Content = rendered.Content;
+}
+
+const successor = getSuccessor(entry, allEntries);
+const predecessors = getPredecessors(entry, allEntries);
+const errataCalloutText = getErrataCalloutText(entry.data.errata);
+
+const sortedErrata = [...(entry.data.errata || [])].sort((a, b) => {
+  const tA = new Date(a.on).getTime();
+  const tB = new Date(b.on).getTime();
+  return tB - tA;
+});
+const substantiveErrata = sortedErrata.filter((e) => e.class !== 'typo');
+const typoErrata = sortedErrata.filter((e) => e.class === 'typo');
+---
+
+<BaseLayout
+  title={entry.data.title}
+  description={entry.data.description || entry.data.withdrawal_note}
+  type="article"
+  publishedTime={entry.data.published_on ? new Date(entry.data.published_on).toISOString() : undefined}
+  noindex={isWithdrawn}
+>
+  {isWithdrawn ? (
+    <article class="prose tombstone">
+      <header>
+        <h1>{entry.data.title}</h1>
+        <p class="metadata">
+          <strong>Published on:</strong> <time datetime={publishedDate}>{publishedDate}</time>
+          {' '}&bull;{' '}
+          <strong>Withdrawn on:</strong> <time datetime={withdrawnDate}>{withdrawnDate}</time>
+          {expungedDate && (
+            <span>
+              {' '}&bull;{' '}
+              <strong>Expunged on:</strong> <time datetime={expungedDate}>{expungedDate}</time>
+            </span>
+          )}
+        </p>
+      </header>
+
+      <aside class="callout callout-withdrawal" aria-label="Withdrawal notice">
+        <p>{entry.data.withdrawal_note}</p>
+      </aside>
+
+      <footer class="entry-footer">
+        <p>
+          <a href={sourceHistoryUrl} rel="external">Source history</a>
+        </p>
+      </footer>
+    </article>
+  ) : (
+    <article class="prose">
+      {successor && (
+        <aside class="callout callout-superseded" aria-label="Superseded notice">
+          <p>
+            Superseded by{' '}
+            <a href={`/words/${successor.id}/`}>{successor.data.title}</a> on{' '}
+            <time datetime={formatDate(successor.data.published_on)}>
+              {formatDate(successor.data.published_on)}
+            </time>
+          </p>
+        </aside>
+      )}
+
+      {predecessors.length > 0 && (
+        <aside class="callout callout-supersedes" aria-label="Supersession notice">
+          <p>
+            Supersedes{' '}
+            {predecessors.map((p, idx) => (
+              <span>
+                {idx > 0 && ', '}
+                <a href={`/words/${p.id}/`}>{p.data.title}</a>
+              </span>
+            ))}
+          </p>
+        </aside>
+      )}
+
+      {errataCalloutText && (
+        <aside class="callout callout-errata" aria-label="Errata notice">
+          <p>
+            {errataCalloutText} &mdash; <a href="#errata">see errata</a>
+          </p>
+        </aside>
+      )}
+
+      <header>
+        <h1>{entry.data.title}</h1>
+        <p class="metadata">
+          <span class="entry-form">
+            <span aria-hidden="true">{formGlyph}</span> {formLabel}
+          </span>
+          {' '}&bull;{' '}
+          <span class="entry-kind">{entry.data.kind}</span>
+          {' '}&bull;{' '}
+          <time datetime={publishedDate}>{publishedDate}</time>
+        </p>
+        {entry.data.description && (
+          <p class="description">
+            <em>{entry.data.description}</em>
+          </p>
+        )}
+      </header>
+
+      <div class="entry-content">
+        <Content />
+      </div>
+
+      {sortedErrata.length > 0 && (
+        <section id="errata" aria-labelledby="errata-heading">
+          <h2 id="errata-heading">Errata</h2>
+          {substantiveErrata.length > 0 && (
+            <ul class="errata-list">
+              {substantiveErrata.map((item) => (
+                <li>
+                  <time datetime={formatDate(item.on)}>{formatDate(item.on)}</time>
+                  {' '}&bull;{' '}
+                  <span class="erratum-class">
+                    {item.class === 'correction' ? 'Correction' : 'Clarification'}
+                  </span>
+                  {item.fields && item.fields.length > 0 && (
+                    <span class="erratum-fields"> ({item.fields.join(', ')})</span>
+                  )}
+                  : {item.note}
+                </li>
+              ))}
+            </ul>
+          )}
+          {typoErrata.length > 0 && (
+            <details>
+              <summary>Typos ({typoErrata.length})</summary>
+              <ul class="errata-list">
+                {typoErrata.map((item) => (
+                  <li>
+                    <time datetime={formatDate(item.on)}>{formatDate(item.on)}</time>
+                    {' '}&bull;{' '}
+                    <span class="erratum-class">Typo</span>
+                    {item.fields && item.fields.length > 0 && (
+                      <span class="erratum-fields"> ({item.fields.join(', ')})</span>
+                    )}
+                    : {item.note}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </section>
+      )}
+
+      <footer class="entry-footer">
+        <p>
+          <a href={sourceHistoryUrl} rel="external">Source history</a>
+        </p>
+      </footer>
+    </article>
+  )}
+</BaseLayout>

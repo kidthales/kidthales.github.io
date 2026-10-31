@@ -1,0 +1,20 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout
+  title="Page Not Found"
+  description="The requested page could not be found."
+  noindex={true}
+>
+  <article class="prose">
+    <header>
+      <h1>404 &ndash; Page Not Found</h1>
+      <p>The requested page could not be located on this server.</p>
+    </header>
+
+    <p>
+      You can return to the <a href="/">home page</a> or browse published entries in <a href="/words/">Words</a>.
+    </p>
+  </article>
+</BaseLayout>

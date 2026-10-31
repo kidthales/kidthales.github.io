@@ -1,0 +1,13 @@
+[
+  {
+    "pattern": "\\[WARN\\] \\[glob-loader\\] No files found matching \"\\*\\*/\\*\\.md\" in directory \"src[/\\\\]content[/\\\\]words\"",
+    "issue": "#441",
+    "reason": "Production src/content/words/ contains no Markdown entries until the first Words Entry is published."
+  },
+  {
+    "pattern": "\\[WARN\\] \\[content\\] The collection \"words\" does not exist or is empty",
+    "issue": "#441",
+    "reason": "Production src/content/words/ contains no Markdown entries until the first Words Entry is published.",
+    "optional": true
+  }
+]
