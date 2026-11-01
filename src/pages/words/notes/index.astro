@@ -1,0 +1,63 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import {
+  getPublishedEntriesByForm,
+  isSuperseded,
+  isCorrected,
+  formatDate,
+  FORM_LABELS,
+  FORM_GLYPHS,
+} from '../../../lib/entries';
+
+const notes = await getPublishedEntriesByForm('note');
+const label = FORM_LABELS.note;
+const glyph = FORM_GLYPHS.note;
+---
+
+<BaseLayout
+  title="Notes | Words"
+  description="Architectural field notes, observations, and technical references by kidthales."
+>
+  <article class="prose">
+    <header>
+      <h1><span aria-hidden="true">{glyph}</span> {label}s</h1>
+      <p>
+        Architectural field notes, observations, and working references captured during systems design and development.
+      </p>
+
+      <nav aria-label="Words sections" class="words-nav">
+        <ul>
+          <li><a href="/words/">All</a></li>
+          <li><a href="/words/notes/" aria-current="page">Notes</a></li>
+          <li><a href="/words/essays/">Essays</a></li>
+          <li><a href="/words/papers/">Papers</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <section aria-labelledby="notes-heading">
+      <h2 id="notes-heading" class="sr-only">Notes</h2>
+      {notes.length === 0 ? (
+        <p>No published Notes yet.</p>
+      ) : (
+        <ul class="entry-list">
+          {notes.map((entry) => (
+            <li>
+              <span class="entry-form">
+                <span aria-hidden="true">{glyph}</span> {label}
+              </span>
+              {' '}&bull;{' '}
+              <time datetime={formatDate(entry.data.published_on)}>
+                {formatDate(entry.data.published_on)}
+              </time>
+              {' '}&bull;{' '}
+              <a href={`/words/${entry.id}/`}>{entry.data.title}</a>
+              {isSuperseded(entry) && <span class="marker"> [Superseded]</span>}
+              {isCorrected(entry) && <span class="marker"> [Corrected]</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  </article>
+</BaseLayout>

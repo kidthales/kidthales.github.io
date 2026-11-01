@@ -1,0 +1,44 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout
+  title="Credits & Attributions"
+  description="Credits, licenses, and attributions for third-party typography, design tokens, and software used on this site."
+>
+  <article class="prose">
+    <header>
+      <h1>Credits &amp; Attributions</h1>
+      <p>
+        Attribution and licensing details for third-party fonts, software libraries, and assets
+        powering this site.
+      </p>
+    </header>
+
+    <section aria-labelledby="typography-heading">
+      <h2 id="typography-heading">Typography</h2>
+      <p>
+        <strong>Atkinson Hyperlegible Next</strong> and <strong>Atkinson Hyperlegible Mono</strong>
+      </p>
+      <ul>
+        <li><strong>Copyright:</strong> &copy; 2020&ndash;2024 The Atkinson Hyperlegible Next Project Authors, commissioned by Braille Institute of America.</li>
+        <li><strong>License:</strong> SIL Open Font License, Version 1.1 (OFL-1.1).</li>
+        <li><strong>Full License Text:</strong> Available locally at <a href="/credits/OFL.txt">/credits/OFL.txt</a>.</li>
+        <li><strong>Upstream Repository:</strong> <a href="https://github.com/googlefonts/atkinson-hyperlegible-next" rel="external">googlefonts/atkinson-hyperlegible-next</a>.</li>
+      </ul>
+    </section>
+
+    <section aria-labelledby="design-system-heading">
+      <h2 id="design-system-heading">Design System &amp; Color Schemes</h2>
+      <p>
+        <strong>@kidthales/picotol</strong>
+      </p>
+      <ul>
+        <li><strong>Author:</strong> kidthales</li>
+        <li><strong>License:</strong> MIT License.</li>
+        <li><strong>Description:</strong> Classless, semantic CSS design system built strictly with Paul Tol color-blind safe palettes.</li>
+        <li><strong>Upstream Repository:</strong> <a href="https://github.com/kidthales/picotol" rel="external">kidthales/picotol</a>.</li>
+      </ul>
+    </section>
+  </article>
+</BaseLayout>

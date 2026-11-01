@@ -1,0 +1,67 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import {
+  getPublishedEntries,
+  isSuperseded,
+  isCorrected,
+  formatDate,
+  FORM_LABELS,
+  FORM_GLYPHS,
+} from '../../lib/entries';
+
+const entries = await getPublishedEntries();
+---
+
+<BaseLayout
+  title="Words"
+  description="Essays, architectural field notes, and technical papers by kidthales."
+>
+  <article class="prose">
+    <header>
+      <h1>Words</h1>
+      <p>
+        Essays, architectural field notes, and technical papers exploring software architecture,
+        systems design, and programming craft.
+      </p>
+
+      <nav aria-label="Words sections" class="words-nav">
+        <ul>
+          <li><a href="/words/" aria-current="page">All</a></li>
+          <li><a href="/words/notes/">Notes</a></li>
+          <li><a href="/words/essays/">Essays</a></li>
+          <li><a href="/words/papers/">Papers</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <section aria-labelledby="all-words-heading">
+      <h2 id="all-words-heading" class="sr-only">All Entries</h2>
+      {entries.length === 0 ? (
+        <p>No published entries yet.</p>
+      ) : (
+        <ul class="entry-list">
+          {entries.map((entry) => {
+            const form = entry.data.form;
+            const label = FORM_LABELS[form];
+            const glyph = FORM_GLYPHS[form];
+            return (
+              <li>
+                <span class="entry-form">
+                  <span aria-hidden="true">{glyph}</span> {label}
+                </span>
+                {' '}&bull;{' '}
+                <time datetime={formatDate(entry.data.published_on)}>
+                  {formatDate(entry.data.published_on)}
+                </time>
+                {' '}&bull;{' '}
+                <a href={`/words/${entry.id}/`}>{entry.data.title}</a>
+                {isSuperseded(entry) && <span class="marker"> [Superseded]</span>}
+                {isCorrected(entry) && <span class="marker"> [Corrected]</span>}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  </article>
+</BaseLayout>

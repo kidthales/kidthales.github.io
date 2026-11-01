@@ -1,0 +1,8 @@
+[
+  {
+    "ruleId": "color-contrast",
+    "selector": "span[aria-hidden=\"true\"]",
+    "issue": "#441",
+    "reason": "axe-core color-contrast returns incomplete (nonBmp) on Unicode emoji/symbols enclosed in aria-hidden spans."
+  }
+]
