@@ -6,10 +6,11 @@ import { validateManifest, type WorksIsland } from '../scripts/gates/islands.ts'
 import { checkZeroJs } from '../scripts/gates/zero-js.ts';
 import { checkOrigins, isNonSameOrigin, scanHtmlResources } from '../scripts/gates/origins.ts';
 import { checkLinksAndAnchors, extractHtmlLinksAndAnchors } from '../scripts/gates/links.ts';
-import { checkCanonicalAndSitemap } from '../scripts/gates/canonical-sitemap.ts';
+import { checkCanonicalAndSitemap, parseMetaRefreshRedirect } from '../scripts/gates/canonical-sitemap.ts';
+import { isRedirectHtml } from '../scripts/gates/axe.ts';
 import { lintColourLiterals, lintThemeCss, lintLedgerGaps, lintAstroContent, lintTsScriptContent, runCssLints } from '../scripts/gates/css-lint.ts';
 import { lintReleasedPicotol, lintCreditsCompleteness } from '../scripts/gates/integrity-lint.ts';
-import { checkBudgets } from '../scripts/gates/budgets.ts';
+import { checkBudgets, extractPageAssets, getPageType } from '../scripts/gates/budgets.ts';
 
 test('islands manifest cross-check: empty MVP manifest passes with 0 JS dist', () => {
   const emptyManifest: WorksIsland[] = [];
@@ -437,4 +438,150 @@ test('end-to-end output gates: checkCanonicalAndSitemap, checkLinksAndAnchors, c
 
   const budgetRes = checkBudgets(tmpDir, testBudgetsPath);
   assert.equal(budgetRes.ok, true);
+});
+
+test('redirect gates: parseMetaRefreshRedirect & isRedirectHtml parse redirect stubs correctly', () => {
+  const redirectHtml = `
+    <!doctype html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8" />
+        <meta http-equiv="refresh" content="0;url=/works/spiderex/" />
+        <meta name="robots" content="noindex" />
+        <link rel="canonical" href="https://kidthales.github.io/works/spiderex/" />
+      </head>
+      <body>
+        <p>Redirecting to <a href="/works/spiderex/">Spiderex</a>...</p>
+      </body>
+    </html>
+  `;
+
+  const parsed = parseMetaRefreshRedirect(redirectHtml);
+  assert.equal(parsed.isRedirect, true);
+  assert.equal(parsed.target, '/works/spiderex/');
+  assert.equal(isRedirectHtml(redirectHtml), true);
+
+  const normalHtml = `
+    <!doctype html>
+    <html>
+      <head><title>Normal</title></head>
+      <body><h1>Normal</h1></body>
+    </html>
+  `;
+  const normalParsed = parseMetaRefreshRedirect(normalHtml);
+  assert.equal(normalParsed.isRedirect, false);
+  assert.equal(normalParsed.target, null);
+  assert.equal(isRedirectHtml(normalHtml), false);
+});
+
+test('canonical & sitemap gate: verifies redirect stubs require noindex, canonical to target, and sitemap omission', (t) => {
+  const tmpDir = path.join(process.cwd(), 'tests', 'fixtures', 'temp-redirect-gate');
+  const spiderexDir = path.join(tmpDir, 'spiderex');
+  const worksSpiderexDir = path.join(tmpDir, 'works', 'spiderex');
+  fs.mkdirSync(spiderexDir, { recursive: true });
+  fs.mkdirSync(worksSpiderexDir, { recursive: true });
+  t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
+
+  // Valid target page
+  fs.writeFileSync(
+    path.join(worksSpiderexDir, 'index.html'),
+    '<!doctype html><html><head><link rel="canonical" href="https://kidthales.github.io/works/spiderex/"><title>Spiderex</title></head><body><h1>Spiderex</h1></body></html>'
+  );
+
+  // Valid redirect stub
+  fs.writeFileSync(
+    path.join(spiderexDir, 'index.html'),
+    `<!doctype html><html><head>
+      <meta http-equiv="refresh" content="0;url=/works/spiderex/" />
+      <meta name="robots" content="noindex" />
+      <link rel="canonical" href="https://kidthales.github.io/works/spiderex/" />
+    </head><body><p>Redirecting...</p></body></html>`
+  );
+
+  // Valid sitemap omitting /spiderex/
+  fs.writeFileSync(
+    path.join(tmpDir, 'sitemap.xml'),
+    `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://kidthales.github.io/works/spiderex/</loc></url>
+</urlset>`
+  );
+
+  const validResult = checkCanonicalAndSitemap(tmpDir);
+  assert.equal(validResult.ok, true);
+
+  // Failure scenario 1: redirect stub missing noindex
+  fs.writeFileSync(
+    path.join(spiderexDir, 'index.html'),
+    `<!doctype html><html><head>
+      <meta http-equiv="refresh" content="0;url=/works/spiderex/" />
+      <link rel="canonical" href="https://kidthales.github.io/works/spiderex/" />
+    </head><body><p>Redirecting...</p></body></html>`
+  );
+  const noNoindexResult = checkCanonicalAndSitemap(tmpDir);
+  assert.equal(noNoindexResult.ok, false);
+  assert.ok(noNoindexResult.errors.some((e) => e.includes('must have <meta name="robots" content="noindex">')));
+
+  // Failure scenario 2: redirect stub canonical pointing to self (/spiderex/) instead of destination
+  fs.writeFileSync(
+    path.join(spiderexDir, 'index.html'),
+    `<!doctype html><html><head>
+      <meta http-equiv="refresh" content="0;url=/works/spiderex/" />
+      <meta name="robots" content="noindex" />
+      <link rel="canonical" href="https://kidthales.github.io/spiderex/" />
+    </head><body><p>Redirecting...</p></body></html>`
+  );
+  const badCanonicalResult = checkCanonicalAndSitemap(tmpDir);
+  assert.equal(badCanonicalResult.ok, false);
+  assert.ok(badCanonicalResult.errors.some((e) => e.includes('Canonical URL mismatch')));
+
+  // Failure scenario 3: redirect stub included in sitemap.xml
+  fs.writeFileSync(
+    path.join(spiderexDir, 'index.html'),
+    `<!doctype html><html><head>
+      <meta http-equiv="refresh" content="0;url=/works/spiderex/" />
+      <meta name="robots" content="noindex" />
+      <link rel="canonical" href="https://kidthales.github.io/works/spiderex/" />
+    </head><body><p>Redirecting...</p></body></html>`
+  );
+  fs.writeFileSync(
+    path.join(tmpDir, 'sitemap.xml'),
+    `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://kidthales.github.io/spiderex/</loc></url>
+  <url><loc>https://kidthales.github.io/works/spiderex/</loc></url>
+</urlset>`
+  );
+  const sitemapLeakResult = checkCanonicalAndSitemap(tmpDir);
+  assert.equal(sitemapLeakResult.ok, false);
+  assert.ok(sitemapLeakResult.errors.some((e) => e.includes('points to a page marked with noindex') || e.includes('points to a redirect page')));
+});
+
+test('budgets gate: extractPageAssets and getPageType handle works vs workIsland correctly', () => {
+  const htmlWithoutJs = `
+    <html>
+      <head>
+        <link rel="stylesheet" href="/_astro/main.123456.css" />
+      </head>
+      <body><h1>Static</h1></body>
+    </html>
+  `;
+  const assets1 = extractPageAssets(htmlWithoutJs);
+  assert.deepEqual(assets1.cssAssets, ['/_astro/main.123456.css']);
+  assert.deepEqual(assets1.jsAssets, []);
+  assert.equal(getPageType('works/sample-game/index.html', assets1.jsAssets.length > 0), 'work');
+
+  const htmlWithJs = `
+    <html>
+      <head>
+        <link rel="stylesheet" href="/_astro/main.123456.css" />
+        <script type="module" src="/_astro/spiderex-trainer.789012.js"></script>
+      </head>
+      <body><spiderex-trainer></spiderex-trainer></body>
+    </html>
+  `;
+  const assets2 = extractPageAssets(htmlWithJs);
+  assert.deepEqual(assets2.cssAssets, ['/_astro/main.123456.css']);
+  assert.deepEqual(assets2.jsAssets, ['/_astro/spiderex-trainer.789012.js']);
+  assert.equal(getPageType('works/spiderex/index.html', assets2.jsAssets.length > 0), 'workIsland');
 });

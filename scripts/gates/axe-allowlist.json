@@ -4,5 +4,11 @@
     "selector": "span[aria-hidden=\"true\"]",
     "issue": "#441",
     "reason": "axe-core color-contrast returns incomplete (nonBmp) on Unicode emoji/symbols enclosed in aria-hidden spans."
+  },
+  {
+    "ruleId": "color-contrast",
+    "selector": "text[",
+    "issue": "#468",
+    "reason": "axe-core color-contrast returns incomplete on SVG <text> elements in Spiderex trainer (finger badges, string tunings, fret labels, bar headers) due to overlapping vector elements or short-text heuristics."
   }
 ]
