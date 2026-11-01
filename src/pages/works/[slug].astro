@@ -1,6 +1,7 @@
 ---
 import { render } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import SpiderexTrainer from '../../components/SpiderexTrainer.astro';
 import {
   getAllWorks,
   isRetired,
@@ -80,6 +81,8 @@ const { Content } = await render(work);
         </p>
       )}
     </header>
+
+    {work.id === 'spiderex' && !retired && <SpiderexTrainer />}
 
     <div class="entry-content">
       <Content />

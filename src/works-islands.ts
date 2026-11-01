@@ -17,4 +17,11 @@ export interface WorksIsland {
   origins: IslandOrigin[];
 }
 
-export const worksIslands: WorksIsland[] = [];
+export const worksIslands: WorksIsland[] = [
+  {
+    route: '/works/spiderex/',
+    reason: 'Interactive guitar fretboard spider-exercise trainer',
+    js: true,
+    origins: [],
+  },
+];
