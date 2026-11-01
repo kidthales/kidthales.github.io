@@ -15,7 +15,7 @@
     - Accessibility gate & reports (axe.ts)
     - Weight budgets gate (budgets.ts)
     - Content-integrity gates (css-lint, integrity-lint, errata-guard)
-    - Negative scenarios (N1–N9)
+    - Negative scenarios (N1–N10)
     - Production dist/ restoration and verification
     - Verifiable local CI receipt generation (.ci-local/receipt.json)
 .PARAMETER BaseRef
@@ -370,6 +370,8 @@ try {
     # Step 3: Typecheck (astro check)
     # -------------------------------------------------------------
     Write-Group "Typecheck (astro check)"
+    if (Test-Path (Join-Path $RootDir ".astro")) { Remove-Item -Recurse -Force (Join-Path $RootDir ".astro") }
+    if (Test-Path (Join-Path $RootDir "node_modules/.astro")) { Remove-Item -Recurse -Force (Join-Path $RootDir "node_modules/.astro") }
     Write-Host "Running: npm run check..." -ForegroundColor Yellow
     & npm run check
     if ($LASTEXITCODE -ne 0) {
@@ -411,6 +413,7 @@ try {
         throw "CI Step Failed: Production build cannot run with SITE_FIXTURES set."
     }
     if (Test-Path (Join-Path $RootDir ".astro")) { Remove-Item -Recurse -Force (Join-Path $RootDir ".astro") }
+    if (Test-Path (Join-Path $RootDir "node_modules/.astro")) { Remove-Item -Recurse -Force (Join-Path $RootDir "node_modules/.astro") }
     if (Test-Path (Join-Path $RootDir "dist")) { Remove-Item -Recurse -Force (Join-Path $RootDir "dist") }
 
     Write-Host "Running: npm run build..." -ForegroundColor Yellow
@@ -477,11 +480,13 @@ try {
     # -------------------------------------------------------------
     Write-Group "Fixture Build (clean-room SITE_FIXTURES=1)"
     if (Test-Path (Join-Path $RootDir ".astro")) { Remove-Item -Recurse -Force (Join-Path $RootDir ".astro") }
+    if (Test-Path (Join-Path $RootDir "node_modules/.astro")) { Remove-Item -Recurse -Force (Join-Path $RootDir "node_modules/.astro") }
     if (Test-Path (Join-Path $RootDir "dist")) { Remove-Item -Recurse -Force (Join-Path $RootDir "dist") }
 
     Write-Host "Running: astro build with SITE_FIXTURES=1..." -ForegroundColor Yellow
     $env:SITE_FIXTURES = "1"
     $env:WORDS_FIXTURE_PATH = ""
+    $env:WORKS_FIXTURE_PATH = ""
     try {
         $fixtureOutput = & npx astro build 2>&1 | Out-String
         $fixtureExitCode = $LASTEXITCODE
@@ -493,6 +498,7 @@ try {
     } finally {
         $env:SITE_FIXTURES = ""
         $env:WORDS_FIXTURE_PATH = ""
+        $env:WORKS_FIXTURE_PATH = ""
     }
     Write-EndGroup
 
@@ -571,7 +577,7 @@ try {
     Write-EndGroup
 
     # -------------------------------------------------------------
-    # Step 15: Negative Scenarios Gate (invalid fixtures N1–N9)
+    # Step 15: Negative Scenarios Gate (invalid fixtures N1–N10)
     # -------------------------------------------------------------
     Write-Group "Negative Scenarios Gate (invalid fixtures)"
     $scenarios = @(
@@ -583,13 +589,22 @@ try {
         @{ Id = "N6"; Dir = "n6-unknown-form"; Pattern = "Did not match union" },
         @{ Id = "N7"; Dir = "n7-superseded-by-draft"; Pattern = "target is a draft" },
         @{ Id = "N8"; Dir = "n8-supersede-cycle"; Pattern = "Supersede cycle detected" },
-        @{ Id = "N9"; Dir = "n9-bad-slug-grammar"; Pattern = "Invalid slug grammar error" }
+        @{ Id = "N9"; Dir = "n9-bad-slug-grammar"; Pattern = "Invalid slug grammar error" },
+        @{ Id = "N10"; Dir = "n10-retired-without-note"; Pattern = "Retired works require retirement_note"; EnvVar = "WORKS_FIXTURE_PATH" }
     )
 
     foreach ($sc in $scenarios) {
         Write-Host "Testing negative scenario $($sc.Id) ($($sc.Dir))..." -ForegroundColor Yellow
+        if (Test-Path (Join-Path $RootDir ".astro")) { Remove-Item -Recurse -Force (Join-Path $RootDir ".astro") }
+        if (Test-Path (Join-Path $RootDir "node_modules/.astro")) { Remove-Item -Recurse -Force (Join-Path $RootDir "node_modules/.astro") }
         $env:SITE_FIXTURES = "1"
-        $env:WORDS_FIXTURE_PATH = "tests/fixtures/invalid/$($sc.Dir)"
+        $env:WORDS_FIXTURE_PATH = ""
+        $env:WORKS_FIXTURE_PATH = ""
+        if ($sc.EnvVar) {
+            Set-Item -Path "env:$($sc.EnvVar)" -Value "tests/fixtures/invalid/$($sc.Dir)"
+        } else {
+            $env:WORDS_FIXTURE_PATH = "tests/fixtures/invalid/$($sc.Dir)"
+        }
         try {
             $output = & npx astro build 2>&1 | Out-String
             if ($LASTEXITCODE -eq 0) {
@@ -602,6 +617,10 @@ try {
         } finally {
             $env:SITE_FIXTURES = ""
             $env:WORDS_FIXTURE_PATH = ""
+            $env:WORKS_FIXTURE_PATH = ""
+            if ($sc.EnvVar) {
+                Set-Item -Path "env:$($sc.EnvVar)" -Value ""
+            }
             $global:LASTEXITCODE = 0
         }
     }

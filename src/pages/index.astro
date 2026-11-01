@@ -1,8 +1,10 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { getLatestPublishedEntries, isSuperseded, isCorrected } from '../lib/entries';
+import { getLatestPublishedWorks, KIND_GLYPHS } from '../lib/works';
 
 const latestWords = await getLatestPublishedEntries(5);
+const latestWorks = await getLatestPublishedWorks(5);
 ---
 
 <BaseLayout
@@ -14,8 +16,8 @@ const latestWords = await getLatestPublishedEntries(5);
       <h1>kidthales</h1>
       <p>
         Personal website and digital garden of kidthales. This space hosts long-form essays,
-        architectural field notes, and technical observations across software design and systems craft.
-        Explore ongoing writings and publications in Words.
+        architectural field notes, and technical observations across software design and systems craft,
+        along with interactive tools, applications, and games in Works.
       </p>
     </header>
 
@@ -36,6 +38,29 @@ const latestWords = await getLatestPublishedEntries(5);
       )}
       <p>
         <a href="/words/">Browse all Words &rarr;</a>
+      </p>
+    </section>
+
+    <section aria-labelledby="latest-works-heading">
+      <h2 id="latest-works-heading">Latest Works</h2>
+      {latestWorks.length === 0 ? (
+        <p>No published Works yet.</p>
+      ) : (
+        <ul>
+          {latestWorks.map((work) => {
+            const glyph = KIND_GLYPHS[work.data.kind];
+            return (
+              <li>
+                <span aria-hidden="true">{glyph}</span>{' '}
+                <a href={`/works/${work.id}/`}>{work.data.title}</a>
+                {' '}&mdash; {work.data.description}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <p>
+        <a href="/works/">Browse all Works &rarr;</a>
       </p>
     </section>
   </article>

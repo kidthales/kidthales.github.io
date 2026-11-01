@@ -90,7 +90,7 @@ export function checkBudgets(
   }
 
   // Helper to categorize page type
-  function getPageType(relHtmlPath: string): 'note' | 'essay' | 'paper' | 'index' | null {
+  function getPageType(relHtmlPath: string): 'note' | 'essay' | 'paper' | 'index' | 'work' | null {
     const normalized = relHtmlPath.replace(/\\/g, '/');
     if (
       normalized === 'index.html' ||
@@ -98,6 +98,7 @@ export function checkBudgets(
       normalized === 'words/notes/index.html' ||
       normalized === 'words/essays/index.html' ||
       normalized === 'words/papers/index.html' ||
+      normalized === 'works/index.html' ||
       normalized === 'credits/index.html'
     ) {
       return 'index';
@@ -108,6 +109,10 @@ export function checkBudgets(
       if (normalized.includes('essay')) return 'essay';
       if (normalized.includes('paper')) return 'paper';
       return 'note';
+    }
+
+    if (normalized.startsWith('works/')) {
+      return 'work';
     }
 
     return null;
