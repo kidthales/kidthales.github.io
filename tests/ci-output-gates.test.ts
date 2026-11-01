@@ -7,7 +7,7 @@ import { checkZeroJs } from '../scripts/gates/zero-js.ts';
 import { checkOrigins, isNonSameOrigin, scanHtmlResources } from '../scripts/gates/origins.ts';
 import { checkLinksAndAnchors, extractHtmlLinksAndAnchors } from '../scripts/gates/links.ts';
 import { checkCanonicalAndSitemap } from '../scripts/gates/canonical-sitemap.ts';
-import { lintColourLiterals, lintThemeCss, lintLedgerGaps } from '../scripts/gates/css-lint.ts';
+import { lintColourLiterals, lintThemeCss, lintLedgerGaps, lintAstroContent, lintTsScriptContent, runCssLints } from '../scripts/gates/css-lint.ts';
 import { lintReleasedPicotol, lintCreditsCompleteness } from '../scripts/gates/integrity-lint.ts';
 import { checkBudgets } from '../scripts/gates/budgets.ts';
 
@@ -303,6 +303,77 @@ test('css-lint: verifies picotol-gaps.css ledger citations', () => {
   const { errors: uncitedErrors } = lintLedgerGaps(uncitedGaps);
   assert.equal(uncitedErrors.length, 1);
   assert.match(uncitedErrors[0], /does not cite upstream issue/);
+});
+
+test('css-lint: runCssLints scans theme, gaps, astro, and ts scripts successfully', () => {
+  const stylesDir = path.join(process.cwd(), 'src', 'styles');
+  const result = runCssLints(stylesDir);
+  assert.equal(result.ok, true);
+  assert.equal(result.errors.length, 0);
+  assert.equal(result.themeChecksPassed, true);
+  assert.equal(typeof result.ledgerCount, 'number');
+});
+
+test('css-lint: scans <style> blocks in .astro files for raw colour literals', () => {
+  const cleanAstro = `
+    ---
+    const title = 'Clean Component';
+    ---
+    <div class="box">Clean</div>
+    <style>
+      .box {
+        color: var(--pt-color);
+        background: var(--pt-card-bg);
+        border: 1px solid var(--pt-muted-border);
+      }
+    </style>
+  `;
+  const cleanErrors = lintAstroContent(cleanAstro, 'Clean.astro');
+  assert.equal(cleanErrors.length, 0);
+
+  const dirtyAstro = `
+    ---
+    const title = 'Dirty Component';
+    ---
+    <div class="box">Dirty</div>
+    <style>
+      .box {
+        color: #ff0000;
+        background: rgb(255, 255, 255);
+        border-color: red;
+      }
+    </style>
+  `;
+  const dirtyErrors = lintAstroContent(dirtyAstro, 'Dirty.astro');
+  assert.equal(dirtyErrors.length, 3);
+  assert.match(dirtyErrors[0], /raw hex color literal/);
+  assert.match(dirtyErrors[1], /raw functional color/);
+  assert.match(dirtyErrors[2], /raw named color/);
+});
+
+test('css-lint: scans string and template literals with CSS property-like syntax in .ts files', () => {
+  const cleanTs = `
+    export function renderSvg() {
+      const badge = \`<circle cx="10" cy="10" r="5" fill="var(--pt-card-bg)" stroke="var(--pt-status-info-border)" />\`;
+      const text = '<text fill="var(--pt-status-info-fg)">1</text>';
+      return badge + text;
+    }
+  `;
+  const cleanErrors = lintTsScriptContent(cleanTs, 'clean.ts');
+  assert.equal(cleanErrors.length, 0);
+
+  const dirtyTs = `
+    export function renderSvg() {
+      const hexSvg = \`<circle cx="10" cy="10" r="5" fill="#aabbcc" />\`;
+      const namedSvg = '<rect width="10" height="10" fill="blue" stroke="rgb(0,0,0)" />';
+      return hexSvg + namedSvg;
+    }
+  `;
+  const dirtyErrors = lintTsScriptContent(dirtyTs, 'dirty.ts');
+  assert.equal(dirtyErrors.length, 3);
+  assert.match(dirtyErrors[0], /raw hex color literal/);
+  assert.match(dirtyErrors[1], /raw named color/);
+  assert.match(dirtyErrors[2], /raw functional color/);
 });
 
 test('integrity-lint: verifies exact semver picotol and font credits completeness', () => {
