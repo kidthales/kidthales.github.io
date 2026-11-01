@@ -1,0 +1,371 @@
+---
+import {
+  generateSpiderexDrill,
+  parseSpiderexParams,
+  formatSpiderexAsciiTab,
+  formatWarmupAsciiTab,
+} from '../lib/spiderex.ts';
+import {
+  renderFingerBadgeSvg,
+  renderWarmupCards,
+  renderTwisterSystems,
+} from '../lib/spiderex-render.ts';
+
+// Canonical SSR seed parameters (seed: 2026-01-01, variant 1, 6 strings, skip: false)
+const initialParams = parseSpiderexParams({
+  date: '2026-01-01',
+  variant: 1,
+  strings: 6,
+  skip: false,
+});
+
+const drill = generateSpiderexDrill(initialParams);
+const asciiTab = formatSpiderexAsciiTab(drill);
+const warmupTab = formatWarmupAsciiTab(drill.warmup, drill.params.strings);
+const modeLabel = drill.params.skip ? 'String-Skipping' : 'Adjacent';
+const seedHex = `0x${drill.seed.toString(16).padStart(8, '0')}`;
+---
+
+<spiderex-trainer
+  class="spiderex-trainer"
+  data-date={initialParams.date}
+  data-variant={String(initialParams.variant)}
+  data-strings={String(initialParams.strings)}
+  data-skip={String(initialParams.skip)}
+>
+  <!-- Controls Bar -->
+  <section class="spiderex-controls-panel card" aria-label="Spiderex Trainer Controls">
+    <div class="spiderex-controls-grid">
+      <div class="spiderex-field">
+        <label for="spiderex-date">Drill Date</label>
+        <input
+          type="date"
+          id="spiderex-date"
+          name="date"
+          value={initialParams.date}
+          class="spiderex-input tabular-nums"
+        />
+      </div>
+
+      <div class="spiderex-field spiderex-btn-group">
+        <button type="button" id="spiderex-today" class="spiderex-btn">Today</button>
+        <button type="button" id="spiderex-next" class="spiderex-btn">Next Drill</button>
+      </div>
+
+      <div class="spiderex-field">
+        <label for="spiderex-strings">Strings</label>
+        <select id="spiderex-strings" name="strings" class="spiderex-select">
+          <option value="4">4 Strings (Bass)</option>
+          <option value="6" selected>6 Strings (Guitar)</option>
+          <option value="7">7 Strings (Extended)</option>
+        </select>
+      </div>
+
+      <div class="spiderex-field spiderex-checkbox-field">
+        <label class="spiderex-checkbox-label">
+          <input type="checkbox" id="spiderex-skip" name="skip" />
+          <span>String Skipping</span>
+        </label>
+      </div>
+
+      <div class="spiderex-field spiderex-action-field">
+        <button type="button" id="spiderex-copy" class="spiderex-btn spiderex-btn-primary">
+          Copy Tab
+        </button>
+      </div>
+    </div>
+
+    <!-- Screen Reader Status Announcements -->
+    <div id="spiderex-status" class="visually-hidden" aria-live="polite" role="status"></div>
+  </section>
+
+  <!-- Finger Geometric Badges Legend -->
+  <section class="spiderex-legend card" aria-label="Finger Shapes & Tokens Legend">
+    <div class="spiderex-legend-grid">
+      <div class="legend-item">
+        <svg class="legend-badge-svg" viewBox="0 0 32 32" width="24" height="24" aria-hidden="true">
+          <rect width="100%" height="100%" fill="var(--pt-bg)" />
+          <Fragment set:html={renderFingerBadgeSvg(1, 16, 16, { radius: 11 })} />
+        </svg>
+        <span class="legend-label"><strong>Finger 1</strong> (Index)</span>
+      </div>
+
+      <div class="legend-item">
+        <svg class="legend-badge-svg" viewBox="0 0 32 32" width="24" height="24" aria-hidden="true">
+          <rect width="100%" height="100%" fill="var(--pt-bg)" />
+          <Fragment set:html={renderFingerBadgeSvg(2, 16, 16, { radius: 11 })} />
+        </svg>
+        <span class="legend-label"><strong>Finger 2</strong> (Middle)</span>
+      </div>
+
+      <div class="legend-item">
+        <svg class="legend-badge-svg" viewBox="0 0 32 32" width="24" height="24" aria-hidden="true">
+          <rect width="100%" height="100%" fill="var(--pt-bg)" />
+          <Fragment set:html={renderFingerBadgeSvg(3, 16, 16, { radius: 11 })} />
+        </svg>
+        <span class="legend-label"><strong>Finger 3</strong> (Ring)</span>
+      </div>
+
+      <div class="legend-item">
+        <svg class="legend-badge-svg" viewBox="0 0 32 32" width="24" height="24" aria-hidden="true">
+          <rect width="100%" height="100%" fill="var(--pt-bg)" />
+          <Fragment set:html={renderFingerBadgeSvg(4, 16, 16, { radius: 11 })} />
+        </svg>
+        <span class="legend-label"><strong>Finger 4</strong> (Pinky)</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Drill Metadata Summary -->
+  <p id="spiderex-meta-summary" class="spiderex-meta tabular-nums">
+    {drill.params.date} (v{drill.params.variant}) — {drill.params.strings} Strings — {modeLabel} — Seed: {seedHex}
+  </p>
+
+  <!-- Section 1: Warmup Grid & Collapsible Full-Neck Tab -->
+  <section class="spiderex-section" aria-label="Warmup Exercises">
+    <h3 class="spiderex-section-title">Warmup Patterns (Frets 1–12)</h3>
+    <div id="spiderex-warmup-grid" class="warmup-grid">
+      <Fragment set:html={renderWarmupCards(drill.warmup, drill.params.strings)} />
+    </div>
+
+    <details class="spiderex-details warmup-details">
+      <summary class="spiderex-summary">Full-Neck ASCII Tablature (Frets 1–12 Ascending/Descending)</summary>
+      <pre class="spiderex-pre"><code id="spiderex-warmup-tab" class="spiderex-code tabular-nums">{warmupTab}</code></pre>
+    </details>
+  </section>
+
+  <!-- Section 2: Twister SVG Systems & Synchronized ASCII Tab -->
+  <section class="spiderex-section" aria-label="Twister 16-Bar Permutational Drill">
+    <h3 class="spiderex-section-title">Twister Exercise (16 Bars — Chromatic Independence)</h3>
+    <div id="spiderex-twister-systems" class="twister-systems-container">
+      <Fragment set:html={renderTwisterSystems(drill)} />
+    </div>
+
+    <details open class="spiderex-details twister-tab-details">
+      <summary class="spiderex-summary">Synchronized ASCII Tablature (16 Bars)</summary>
+      <pre class="spiderex-pre"><code id="spiderex-twister-tab" class="spiderex-code tabular-nums">{asciiTab}</code></pre>
+    </details>
+  </section>
+</spiderex-trainer>
+
+<script>
+  import '../scripts/spiderex-trainer.ts';
+</script>
+
+<style>
+  .spiderex-trainer {
+    display: block;
+    width: 100%;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .spiderex-controls-panel {
+    margin-bottom: var(--pt-spacing);
+    padding: var(--pt-spacing);
+  }
+
+  .spiderex-controls-grid {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--pt-spacing);
+  }
+
+  .spiderex-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--pt-gap-compact);
+  }
+
+  .spiderex-field label {
+    font-size: var(--pt-font-size-xs, 0.75rem);
+    font-weight: bold;
+    color: var(--pt-muted-color);
+  }
+
+  .spiderex-btn-group {
+    flex-direction: row;
+    gap: var(--pt-gap-compact);
+  }
+
+  .spiderex-input,
+  .spiderex-select,
+  .spiderex-btn {
+    font-family: var(--pt-font-sans);
+    font-size: 0.95rem;
+    padding: var(--pt-form-y, 0.35rem) var(--pt-form-x, 0.65rem);
+    border-radius: var(--pt-border-radius);
+    border: 1px solid var(--pt-muted-border);
+    background: var(--pt-card-bg);
+    color: var(--pt-color);
+  }
+
+  .spiderex-btn {
+    cursor: pointer;
+    font-weight: bold;
+  }
+
+  .spiderex-btn:hover {
+    border-color: var(--pt-color);
+  }
+
+  .spiderex-btn-primary {
+    background: var(--pt-primary-bg, var(--pt-surface));
+    color: var(--pt-color);
+  }
+
+  .spiderex-checkbox-field {
+    justify-content: center;
+    padding-bottom: var(--pt-gap-compact);
+  }
+
+  .spiderex-checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--pt-gap-compact);
+    cursor: pointer;
+    font-size: 0.95rem;
+    color: var(--pt-color);
+  }
+
+  .spiderex-action-field {
+    margin-left: auto;
+  }
+
+  .spiderex-legend {
+    margin-bottom: var(--pt-spacing);
+    padding: var(--pt-gap-compact) var(--pt-spacing);
+  }
+
+  .spiderex-legend-grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-around;
+    gap: var(--pt-spacing);
+  }
+
+  .legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--pt-gap-compact);
+  }
+
+  .legend-badge-svg {
+    display: block;
+    border-radius: var(--pt-border-radius);
+  }
+
+  .legend-label {
+    font-size: 0.85rem;
+    color: var(--pt-color);
+  }
+
+  .spiderex-meta {
+    font-size: 0.9rem;
+    color: var(--pt-muted-color);
+    margin-bottom: var(--pt-spacing);
+  }
+
+  .spiderex-section {
+    margin-top: calc(var(--pt-spacing) * 1.5);
+    margin-bottom: var(--pt-spacing);
+  }
+
+  .spiderex-section-title {
+    margin-bottom: var(--pt-gap-compact);
+  }
+
+  .warmup-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: var(--pt-spacing);
+    margin-bottom: var(--pt-spacing);
+  }
+
+  .warmup-card {
+    display: flex;
+    flex-direction: column;
+    padding: var(--pt-gap-compact);
+    border: 1px solid var(--pt-muted-border);
+    border-radius: var(--pt-border-radius);
+    background: var(--pt-card-bg);
+  }
+
+  .warmup-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--pt-gap-compact);
+    padding: 0 var(--pt-gap-compact);
+  }
+
+  .warmup-card-title {
+    margin: 0;
+    font-size: 1rem;
+  }
+
+  .warmup-pattern-code {
+    font-family: var(--pt-font-mono);
+    font-weight: bold;
+    color: var(--pt-color);
+  }
+
+  .warmup-svg-wrap {
+    width: 100%;
+    aspect-ratio: 280 / 178;
+  }
+
+  .twister-systems-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--pt-spacing);
+    margin-bottom: var(--pt-spacing);
+    width: 100%;
+  }
+
+  .twister-system {
+    display: block;
+    width: 100%;
+    aspect-ratio: 800 / 180;
+    border-radius: var(--pt-border-radius);
+    border: 1px solid var(--pt-muted-border);
+  }
+
+  .spiderex-details {
+    margin-top: var(--pt-spacing);
+    border: 1px solid var(--pt-muted-border);
+    border-radius: var(--pt-border-radius);
+    padding: var(--pt-gap-compact);
+  }
+
+  .spiderex-summary {
+    cursor: pointer;
+    font-weight: bold;
+    color: var(--pt-color);
+    padding: var(--pt-gap-compact);
+  }
+
+  .spiderex-pre {
+    margin: var(--pt-gap-compact) 0 0 0;
+    overflow-x: auto;
+  }
+
+  .spiderex-code {
+    font-family: var(--pt-font-mono);
+    font-size: 0.85rem;
+    line-height: 1.4;
+    color: var(--pt-color);
+  }
+
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+</style>

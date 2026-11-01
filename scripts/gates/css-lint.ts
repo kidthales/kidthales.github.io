@@ -57,7 +57,9 @@ export function lintColourLiterals(cssContent: string, fileName: string): string
     // Check named colors (only in property values, e.g. color: black; background: white;)
     if (line.includes(':')) {
       const value = line.split(':')[1];
-      const namedMatch = NAMED_COLOR_REGEX.exec(value);
+      // Strip valid var(--pt-...) expressions so tokens like var(--pt-red) or var(--pt-yellow) are not falsely flagged
+      const valueWithoutTokens = value.replace(/var\(--pt-[^)]+\)/g, '');
+      const namedMatch = NAMED_COLOR_REGEX.exec(valueWithoutTokens);
       if (namedMatch) {
         errors.push(`${fileName}:${i + 1} contains raw named color "${namedMatch[0]}". Must use picotol tokens.`);
       }
@@ -177,7 +179,7 @@ export function lintLedgerGaps(gapsCssContent: string): { errors: string[]; ledg
   return { errors, ledgerCount };
 }
 
-export function runCssLints(srcStylesDir: string): CssLintResult {
+export function runCssLints(srcStylesDir: string, projectRoot?: string): CssLintResult {
   const errors: string[] = [];
 
   const themeCssPath = path.join(srcStylesDir, 'theme.css');
@@ -208,12 +210,159 @@ export function runCssLints(srcStylesDir: string): CssLintResult {
     errors.push(`File not found: ${gapsCssPath}`);
   }
 
+  // Scan .astro files and src/scripts/**/*.ts
+  const resolvedSrcDir = projectRoot
+    ? path.join(projectRoot, 'src')
+    : path.resolve(srcStylesDir, '..');
+
+  if (fs.existsSync(resolvedSrcDir)) {
+    const astroErrors = lintAstroFiles(resolvedSrcDir);
+    errors.push(...astroErrors);
+
+    const scriptsDir = path.join(resolvedSrcDir, 'scripts');
+    if (fs.existsSync(scriptsDir)) {
+      const scriptErrors = lintTsScriptFiles(scriptsDir);
+      errors.push(...scriptErrors);
+    }
+  }
+
   return {
     ok: errors.length === 0,
     errors,
     themeChecksPassed: errors.length === 0,
     ledgerCount,
   };
+}
+
+/**
+ * 4. Astro <style> block lint:
+ * Extracts <style> blocks from .astro content and verifies zero raw colour literals.
+ */
+export function extractAstroStyles(astroContent: string): { css: string; startLine: number }[] {
+  const blocks: { css: string; startLine: number }[] = [];
+  const styleRegex = /<style(?:\s+[^>]*)?>([\s\S]*?)<\/style>/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = styleRegex.exec(astroContent)) !== null) {
+    const preMatch = astroContent.slice(0, match.index);
+    const startLine = preMatch.split('\n').length;
+    blocks.push({
+      css: match[1],
+      startLine,
+    });
+  }
+
+  return blocks;
+}
+
+export function lintAstroContent(astroContent: string, fileName: string): string[] {
+  const errors: string[] = [];
+  const blocks = extractAstroStyles(astroContent);
+
+  for (const block of blocks) {
+    const blockErrors = lintColourLiterals(block.css, `${fileName} (style line ${block.startLine})`);
+    errors.push(...blockErrors);
+  }
+
+  return errors;
+}
+
+/**
+ * 5. TypeScript CSS/SVG string and template literal lint:
+ * Scans string and template literals in .ts files that have CSS property or SVG attribute syntax
+ * (e.g. color:, fill:, stroke:, background:, border:, or style="...") for raw colour literals.
+ */
+export function extractTsCssLiterals(tsContent: string): { content: string; startLine: number }[] {
+  const literals: { content: string; startLine: number }[] = [];
+  const CSS_PROPERTY_OR_ATTR_PATTERN = /\b(?:color|background|background-color|fill|stroke|border|border-color)\s*[:=]/i;
+
+  // 1. Template literals `...`
+  const templateRegex = /`([\s\S]*?)`/g;
+  let match: RegExpExecArray | null;
+  while ((match = templateRegex.exec(tsContent)) !== null) {
+    const raw = match[1];
+    if (CSS_PROPERTY_OR_ATTR_PATTERN.test(raw)) {
+      const pre = tsContent.slice(0, match.index);
+      const startLine = pre.split('\n').length;
+      literals.push({ content: raw, startLine });
+    }
+  }
+
+  // 2. String literals "..." and '...'
+  const stringRegex = /(?:"([^"\\]*(?:\\.[^"\\]*)*)"|'([^'\\]*(?:\\.[^'\\]*)*)')/g;
+  while ((match = stringRegex.exec(tsContent)) !== null) {
+    const raw = match[1] ?? match[2] ?? '';
+    if (CSS_PROPERTY_OR_ATTR_PATTERN.test(raw)) {
+      const pre = tsContent.slice(0, match.index);
+      const startLine = pre.split('\n').length;
+      literals.push({ content: raw, startLine });
+    }
+  }
+
+  return literals;
+}
+
+export function lintTsScriptContent(tsContent: string, fileName: string): string[] {
+  const errors: string[] = [];
+  const literals = extractTsCssLiterals(tsContent);
+
+  for (const lit of literals) {
+    // Normalize SVG attribute assignments key="value" to separate lines key: value;
+    // Also ensure semicolons are followed by newlines so multiple declarations on a single line are each inspected
+    const normalized = lit.content
+      .replace(/\b([a-zA-Z-]+)\s*=\s*(["'])(.*?)\2/g, '\n$1: $3;\n')
+      .replace(/;/g, ';\n');
+    const blockErrors = lintColourLiterals(normalized, `${fileName} (line ${lit.startLine})`);
+    errors.push(...blockErrors);
+  }
+
+  return errors;
+}
+
+/**
+ * Recursively walks a directory to find all files ending with a given extension.
+ */
+export function walkFiles(dir: string, extension: string): string[] {
+  if (!fs.existsSync(dir)) return [];
+  const results: string[] = [];
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      results.push(...walkFiles(fullPath, extension));
+    } else if (entry.isFile() && entry.name.endsWith(extension)) {
+      results.push(fullPath);
+    }
+  }
+
+  return results;
+}
+
+export function lintAstroFiles(srcDir: string): string[] {
+  const errors: string[] = [];
+  const astroFiles = walkFiles(srcDir, '.astro');
+
+  for (const file of astroFiles) {
+    const content = fs.readFileSync(file, 'utf8');
+    const relPath = path.relative(process.cwd(), file);
+    errors.push(...lintAstroContent(content, relPath));
+  }
+
+  return errors;
+}
+
+export function lintTsScriptFiles(scriptsDir: string): string[] {
+  const errors: string[] = [];
+  const tsFiles = walkFiles(scriptsDir, '.ts');
+
+  for (const file of tsFiles) {
+    const content = fs.readFileSync(file, 'utf8');
+    const relPath = path.relative(process.cwd(), file);
+    errors.push(...lintTsScriptContent(content, relPath));
+  }
+
+  return errors;
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
