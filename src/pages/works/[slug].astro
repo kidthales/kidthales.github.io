@@ -1,0 +1,97 @@
+---
+import { render } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import SpiderexTrainer from '../../components/SpiderexTrainer.astro';
+import {
+  getAllWorks,
+  isRetired,
+  formatDate,
+  KIND_LABELS,
+  KIND_GLYPHS,
+  type WorkEntry,
+} from '../../lib/works';
+
+export async function getStaticPaths() {
+  const allWorks = await getAllWorks();
+  // Filter out drafts: drafts are private and unrendered in static builds
+  const renderable = allWorks.filter((work) => work.data.draft !== true);
+
+  return renderable.map((work) => ({
+    params: { slug: work.id },
+    props: {
+      work,
+    },
+  }));
+}
+
+interface Props {
+  work: WorkEntry;
+}
+
+const { work } = Astro.props;
+
+const retired = isRetired(work);
+const publishedDate = formatDate(work.data.published_on);
+const retiredDate = formatDate(work.data.retired_on);
+
+const kindLabel = KIND_LABELS[work.data.kind];
+const kindGlyph = KIND_GLYPHS[work.data.kind];
+
+const GITHUB_REPO_URL = 'https://github.com/kidthales/kidthales.github.io';
+const sourceHistoryUrl = `${GITHUB_REPO_URL}/commits/main/src/content/works/${work.id}.md`;
+
+const { Content } = await render(work);
+---
+
+<BaseLayout
+  title={work.data.title}
+  description={work.data.description}
+  type="article"
+  publishedTime={work.data.published_on ? new Date(work.data.published_on).toISOString() : undefined}
+  noindex={false}
+>
+  <article class="prose">
+    {retired && (
+      <aside class="callout callout-retired" aria-label="Retirement notice">
+        <p>
+          <strong>Retired on <time datetime={retiredDate}>{retiredDate}</time>:</strong>{' '}
+          {work.data.retirement_note}
+        </p>
+      </aside>
+    )}
+
+    <header>
+      <h1>{work.data.title}</h1>
+      <p class="metadata">
+        <span class="entry-form">
+          <span aria-hidden="true">{kindGlyph}</span> {kindLabel}
+        </span>
+        {' '}&bull;{' '}
+        <strong>Published on:</strong> <time datetime={publishedDate}>{publishedDate}</time>
+        {retired && (
+          <span>
+            {' '}&bull;{' '}
+            <strong>Retired on:</strong> <time datetime={retiredDate}>{retiredDate}</time>
+          </span>
+        )}
+      </p>
+      {work.data.description && (
+        <p class="description">
+          <em>{work.data.description}</em>
+        </p>
+      )}
+    </header>
+
+    {work.id === 'spiderex' && !retired && <SpiderexTrainer />}
+
+    <div class="entry-content">
+      <Content />
+    </div>
+
+    <footer class="entry-footer">
+      <p>
+        <a href={sourceHistoryUrl} rel="external">Source history</a>
+      </p>
+    </footer>
+  </article>
+</BaseLayout>

@@ -17,6 +17,11 @@ export interface BudgetConfig {
       maxBytes: number;
       description?: string;
     };
+    totalJsGzipBytes?: {
+      measuredBytes: number;
+      maxBytes: number;
+      description?: string;
+    };
   };
 }
 
@@ -24,6 +29,79 @@ export interface BudgetCheckResult {
   ok: boolean;
   errors: string[];
   metrics: Record<string, { measured: number; max: number }>;
+}
+
+/**
+ * Extracts linked CSS stylesheets and JS script assets from an HTML document.
+ */
+export function extractPageAssets(htmlContent: string): { cssAssets: string[]; jsAssets: string[] } {
+  const cssAssets: string[] = [];
+  const jsAssets: string[] = [];
+
+  // Match <link rel="stylesheet" href="..."> and <link href="..." rel="stylesheet">
+  const linkRegex = /<link\b[^>]*>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = linkRegex.exec(htmlContent)) !== null) {
+    const tag = match[0];
+    if (/\brel\s*=\s*(?:"stylesheet"|'stylesheet')/i.test(tag)) {
+      const hrefMatch = /\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(tag);
+      if (hrefMatch) {
+        const href = hrefMatch[1] ?? hrefMatch[2] ?? hrefMatch[3];
+        if (href && !cssAssets.includes(href)) {
+          cssAssets.push(href);
+        }
+      }
+    }
+  }
+
+  // Match <script src="...">
+  const scriptRegex = /<script\b[^>]*>/gi;
+  while ((match = scriptRegex.exec(htmlContent)) !== null) {
+    const tag = match[0];
+    const srcMatch = /\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(tag);
+    if (srcMatch) {
+      const src = srcMatch[1] ?? srcMatch[2] ?? srcMatch[3];
+      if (src && !jsAssets.includes(src)) {
+        jsAssets.push(src);
+      }
+    }
+  }
+
+  return { cssAssets, jsAssets };
+}
+
+/**
+ * Categorizes an HTML page path to its budget type, factoring in client script presence for works islands.
+ */
+export function getPageType(
+  relHtmlPath: string,
+  hasJs: boolean = false
+): 'note' | 'essay' | 'paper' | 'index' | 'work' | 'workIsland' | null {
+  const normalized = relHtmlPath.replace(/\\/g, '/');
+  if (
+    normalized === 'index.html' ||
+    normalized === 'words/index.html' ||
+    normalized === 'words/notes/index.html' ||
+    normalized === 'words/essays/index.html' ||
+    normalized === 'words/papers/index.html' ||
+    normalized === 'works/index.html' ||
+    normalized === 'credits/index.html'
+  ) {
+    return 'index';
+  }
+
+  if (normalized.startsWith('words/')) {
+    // In fixture build, determine kind by fixture name or inspect content
+    if (normalized.includes('essay')) return 'essay';
+    if (normalized.includes('paper')) return 'paper';
+    return 'note';
+  }
+
+  if (normalized.startsWith('works/')) {
+    return hasJs ? 'workIsland' : 'work';
+  }
+
+  return null;
 }
 
 export function checkBudgets(
@@ -53,19 +131,23 @@ export function checkBudgets(
     fs.readFileSync(budgetsConfigPath, 'utf8')
   );
 
-  // 1. Calculate site CSS compressed size
-  const cssDir = path.join(distDir, '_astro');
-  let siteCssGzipBytes = 0;
-  if (fs.existsSync(cssDir)) {
-    for (const f of fs.readdirSync(cssDir)) {
-      if (f.endsWith('.css')) {
-        const raw = fs.readFileSync(path.join(cssDir, f));
-        siteCssGzipBytes += zlib.gzipSync(raw).length;
-      }
+  const assetGzipCache = new Map<string, number>();
+  function getAssetGzipSize(assetRef: string): number {
+    const cleanRef = assetRef.split('?')[0].split('#')[0];
+    if (assetGzipCache.has(cleanRef)) {
+      return assetGzipCache.get(cleanRef)!;
     }
+    const diskPath = path.join(distDir, cleanRef.replace(/^\/+/, ''));
+    if (fs.existsSync(diskPath) && fs.statSync(diskPath).isFile()) {
+      const raw = fs.readFileSync(diskPath);
+      const size = zlib.gzipSync(raw).length;
+      assetGzipCache.set(cleanRef, size);
+      return size;
+    }
+    return 0;
   }
 
-  // 2. Measure WOFF2 font assets
+  // 1. Measure WOFF2 font assets
   const fontsDir = path.join(distDir, 'fonts');
   let totalWoff2Bytes = 0;
   if (fs.existsSync(fontsDir)) {
@@ -89,28 +171,29 @@ export function checkBudgets(
     }
   }
 
-  // Helper to categorize page type
-  function getPageType(relHtmlPath: string): 'note' | 'essay' | 'paper' | 'index' | null {
-    const normalized = relHtmlPath.replace(/\\/g, '/');
-    if (
-      normalized === 'index.html' ||
-      normalized === 'words/index.html' ||
-      normalized === 'words/notes/index.html' ||
-      normalized === 'words/essays/index.html' ||
-      normalized === 'words/papers/index.html' ||
-      normalized === 'credits/index.html'
-    ) {
-      return 'index';
+  // 2. Measure client JS assets in dist/_astro/
+  let totalJsGzipBytes = 0;
+  const astroDir = path.join(distDir, '_astro');
+  if (fs.existsSync(astroDir)) {
+    for (const f of fs.readdirSync(astroDir)) {
+      if (f.endsWith('.js') || f.endsWith('.mjs')) {
+        const raw = fs.readFileSync(path.join(astroDir, f));
+        totalJsGzipBytes += zlib.gzipSync(raw).length;
+      }
     }
+  }
 
-    if (normalized.startsWith('words/')) {
-      // In fixture build, determine kind by fixture name or inspect content
-      if (normalized.includes('essay')) return 'essay';
-      if (normalized.includes('paper')) return 'paper';
-      return 'note';
+  const jsBudget = budgetConfig.assetBudgets?.totalJsGzipBytes;
+  if (jsBudget) {
+    metrics['asset:totalJsGzipBytes'] = {
+      measured: totalJsGzipBytes,
+      max: jsBudget.maxBytes,
+    };
+    if (totalJsGzipBytes > jsBudget.maxBytes) {
+      errors.push(
+        `Total client JS size exceeded budget: ${totalJsGzipBytes} B > ${jsBudget.maxBytes} B limit.`
+      );
     }
-
-    return null;
   }
 
   // Check each HTML file against its page type budget
@@ -122,13 +205,26 @@ export function checkBudgets(
         walkHtml(fullPath);
       } else if (entry.isFile() && entry.name.endsWith('.html')) {
         const relPath = path.relative(distDir, fullPath).replace(/\\/g, '/');
-        const pageType = getPageType(relPath);
+        const raw = fs.readFileSync(fullPath);
+        const htmlContent = raw.toString('utf8');
+        const { cssAssets, jsAssets } = extractPageAssets(htmlContent);
+        const pageType = getPageType(relPath, jsAssets.length > 0);
 
         if (pageType && budgetConfig.pageBudgets?.[pageType]) {
           const budget = budgetConfig.pageBudgets[pageType];
-          const raw = fs.readFileSync(fullPath);
           const htmlGzipBytes = zlib.gzipSync(raw).length;
-          const combinedCompressed = htmlGzipBytes + siteCssGzipBytes;
+
+          let pageCssGzipBytes = 0;
+          for (const cssRef of cssAssets) {
+            pageCssGzipBytes += getAssetGzipSize(cssRef);
+          }
+
+          let pageJsGzipBytes = 0;
+          for (const jsRef of jsAssets) {
+            pageJsGzipBytes += getAssetGzipSize(jsRef);
+          }
+
+          const combinedCompressed = htmlGzipBytes + pageCssGzipBytes + pageJsGzipBytes;
 
           const metricKey = `page:${pageType}:${relPath}`;
           metrics[metricKey] = {
@@ -138,7 +234,7 @@ export function checkBudgets(
 
           if (combinedCompressed > budget.maxCompressedBytes) {
             errors.push(
-              `Page "${relPath}" (${pageType}) exceeded weight budget: ${combinedCompressed} B (HTML ${htmlGzipBytes} B + CSS ${siteCssGzipBytes} B) > ${budget.maxCompressedBytes} B limit.`
+              `Page "${relPath}" (${pageType}) exceeded weight budget: ${combinedCompressed} B (HTML ${htmlGzipBytes} B + CSS ${pageCssGzipBytes} B + JS ${pageJsGzipBytes} B) > ${budget.maxCompressedBytes} B limit.`
             );
           }
         }

@@ -17,6 +17,16 @@
       "maxCompressedBytes": 12399,
       "description": "Compressed HTML + CSS for paper pages (measured from fixture build words/valid-paper)"
     },
+    "work": {
+      "measuredCompressedBytes": 10979,
+      "maxCompressedBytes": 13724,
+      "description": "Compressed HTML + CSS for work pages (measured from fixture build works/retired-work)"
+    },
+    "workIsland": {
+      "measuredCompressedBytes": 21331,
+      "maxCompressedBytes": 26664,
+      "description": "Compressed HTML + CSS + JS for interactive work pages (measured from fixture build works/spiderex)"
+    },
     "index": {
       "measuredCompressedBytes": 10079,
       "maxCompressedBytes": 12599,
@@ -28,6 +38,11 @@
       "measuredBytes": 108476,
       "maxBytes": 135595,
       "description": "Total uncompressed size of all woff2 font files in dist/fonts/"
+    },
+    "totalJsGzipBytes": {
+      "measuredBytes": 4738,
+      "maxBytes": 5923,
+      "description": "Total compressed size of all client JS bundles in dist/_astro/"
     }
   }
 }

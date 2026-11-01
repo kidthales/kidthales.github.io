@@ -10,6 +10,32 @@ export interface CanonicalSitemapResult {
   sitemapUrlsChecked: number;
 }
 
+/**
+ * Detects if an HTML document is a meta-refresh redirect stub and extracts its target.
+ */
+export function parseMetaRefreshRedirect(content: string): { isRedirect: boolean; target: string | null } {
+  const refreshRegex = /<meta\b[^>]*?\bhttp-equiv\s*=\s*(?:"refresh"|'refresh')[^>]*?\bcontent\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))[^>]*>/i;
+  const reverseRefreshRegex = /<meta\b[^>]*?\bcontent\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))[^>]*?\bhttp-equiv\s*=\s*(?:"refresh"|'refresh')[^>]*>/i;
+
+  const match = refreshRegex.exec(content) || reverseRefreshRegex.exec(content);
+  if (!match) {
+    return { isRedirect: false, target: null };
+  }
+
+  const contentVal = match[1] ?? match[2] ?? match[3];
+  if (!contentVal) {
+    return { isRedirect: true, target: null };
+  }
+
+  const urlMatch = /url\s*=\s*([^\s;]+)/i.exec(contentVal);
+  if (!urlMatch) {
+    return { isRedirect: true, target: null };
+  }
+
+  const target = urlMatch[1].replace(/['"]/g, '');
+  return { isRedirect: true, target };
+}
+
 export function checkCanonicalAndSitemap(
   distDir: string,
   siteOrigin: string = 'https://kidthales.github.io'
@@ -27,8 +53,8 @@ export function checkCanonicalAndSitemap(
     };
   }
 
-  // Set of all HTML routes present in dist, mapping route -> { hasNoindex: boolean }
-  const htmlRoutes = new Map<string, { hasNoindex: boolean; file: string }>();
+  // Set of all HTML routes present in dist, mapping route -> { hasNoindex: boolean, isRedirect: boolean, file: string }
+  const htmlRoutes = new Map<string, { hasNoindex: boolean; isRedirect: boolean; file: string }>();
 
   // Walk dist to check canonical tag on every HTML file
   function walk(currentDir: string) {
@@ -51,7 +77,15 @@ export function checkCanonicalAndSitemap(
             content
           );
 
-          htmlRoutes.set(route, { hasNoindex, file: relPath });
+          const { isRedirect, target: redirectTarget } = parseMetaRefreshRedirect(content);
+
+          if (isRedirect && !hasNoindex) {
+            errors.push(
+              `Redirect page "${relPath}" (route "${route}") must have <meta name="robots" content="noindex">.`
+            );
+          }
+
+          htmlRoutes.set(route, { hasNoindex, isRedirect, file: relPath });
 
           // 404 page is not an indexed route, but does it have canonical?
           // The spec requirement:
@@ -98,7 +132,15 @@ export function checkCanonicalAndSitemap(
                 );
               }
               // Expected canonical url for route
-              const expectedHref = `${siteOrigin}${route}`;
+              let expectedHref: string;
+              if (isRedirect && redirectTarget) {
+                expectedHref = redirectTarget.startsWith('http://') || redirectTarget.startsWith('https://')
+                  ? redirectTarget
+                  : `${siteOrigin}${redirectTarget.startsWith('/') ? redirectTarget : `/${redirectTarget}`}`;
+              } else {
+                expectedHref = `${siteOrigin}${route}`;
+              }
+
               if (href !== expectedHref) {
                 errors.push(
                   `Canonical URL mismatch in "${relPath}": got "${href}", expected "${expectedHref}".`
@@ -156,6 +198,10 @@ export function checkCanonicalAndSitemap(
     } else if (pageInfo.hasNoindex) {
       errors.push(
         `Sitemap URL "${urlStr}" points to a page marked with noindex (file: "${pageInfo.file}"). Pages with noindex must not be in sitemap.`
+      );
+    } else if (pageInfo.isRedirect) {
+      errors.push(
+        `Sitemap URL "${urlStr}" points to a redirect page (file: "${pageInfo.file}"). Redirect pages must not be in sitemap.`
       );
     }
   }

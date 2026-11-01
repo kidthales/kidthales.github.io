@@ -91,6 +91,15 @@ export function filePathToRoute(distDir: string, filePath: string): string {
 }
 
 /**
+ * Detects if an HTML document is a meta-refresh redirect stub.
+ */
+export function isRedirectHtml(htmlContent: string): boolean {
+  const refreshRegex = /<meta\b[^>]*?\bhttp-equiv\s*=\s*(?:"refresh"|'refresh')[^>]*>/i;
+  const reverseRefreshRegex = /<meta\b[^>]*?\bcontent\s*=[^>]*?\bhttp-equiv\s*=\s*(?:"refresh"|'refresh')[^>]*>/i;
+  return refreshRegex.test(htmlContent) || reverseRefreshRegex.test(htmlContent);
+}
+
+/**
  * Starts a minimal static HTTP server for dist directory.
  */
 export async function startDistServer(distDir: string): Promise<{ server: http.Server; port: number }> {
@@ -187,7 +196,13 @@ export async function runAxeAudit(options: AxeAuditOptions): Promise<AxeAuditRes
     };
   }
 
-  const routes = htmlFiles.map((f) => filePathToRoute(distDir, f)).sort();
+  // Filter out meta-refresh redirect stubs to prevent client-redirect races in Playwright
+  const nonRedirectHtmlFiles = htmlFiles.filter((filePath) => {
+    const content = fs.readFileSync(filePath, 'utf8');
+    return !isRedirectHtml(content);
+  });
+
+  const routes = nonRedirectHtmlFiles.map((f) => filePathToRoute(distDir, f)).sort();
   const { server, port } = await startDistServer(distDir);
 
   const matchedAllowlistKeys = new Set<string>();
