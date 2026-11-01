@@ -85,6 +85,12 @@ const fullTitle = Astro.url.pathname === '/' ? title : `${title} | ${siteTitle}`
               aria-current={Astro.url.pathname.startsWith('/words') ? 'page' : undefined}
             >Words</a>
           </li>
+          <li>
+            <a
+              href="/works/"
+              aria-current={Astro.url.pathname.startsWith('/works') ? 'page' : undefined}
+            >Works</a>
+          </li>
         </ul>
       </nav>
     </header>

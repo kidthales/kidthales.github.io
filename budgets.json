@@ -17,6 +17,11 @@
       "maxCompressedBytes": 12399,
       "description": "Compressed HTML + CSS for paper pages (measured from fixture build words/valid-paper)"
     },
+    "work": {
+      "measuredCompressedBytes": 10100,
+      "maxCompressedBytes": 12625,
+      "description": "Compressed HTML + CSS for work pages (measured from fixture build works/spiderex)"
+    },
     "index": {
       "measuredCompressedBytes": 10079,
       "maxCompressedBytes": 12599,
