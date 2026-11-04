@@ -118,6 +118,22 @@ export function checkCanonicalAndSitemap(
             // Must be absolute
             if (!href.startsWith('http://') && !href.startsWith('https://')) {
               errors.push(`Canonical URL "${href}" in "${relPath}" is not absolute.`);
+            } else if (isRedirect && redirectTarget) {
+              const selfCanonical = `${siteOrigin}${route}`;
+              const targetCanonical =
+                redirectTarget.startsWith('http://') || redirectTarget.startsWith('https://')
+                  ? redirectTarget
+                  : `${siteOrigin}${redirectTarget.startsWith('/') ? redirectTarget : `/${redirectTarget}`}`;
+
+              if (href !== selfCanonical && href !== targetCanonical) {
+                errors.push(
+                  `Canonical URL mismatch in redirect "${relPath}": got "${href}", expected self-canonical "${selfCanonical}" or target "${targetCanonical}".`
+                );
+              } else if (href.startsWith(siteOrigin) && !href.endsWith('/')) {
+                errors.push(
+                  `Canonical URL "${href}" in "${relPath}" violates trailing-slash requirement.`
+                );
+              }
             } else {
               // Must have siteOrigin
               if (!href.startsWith(siteOrigin)) {
@@ -132,15 +148,7 @@ export function checkCanonicalAndSitemap(
                 );
               }
               // Expected canonical url for route
-              let expectedHref: string;
-              if (isRedirect && redirectTarget) {
-                expectedHref = redirectTarget.startsWith('http://') || redirectTarget.startsWith('https://')
-                  ? redirectTarget
-                  : `${siteOrigin}${redirectTarget.startsWith('/') ? redirectTarget : `/${redirectTarget}`}`;
-              } else {
-                expectedHref = `${siteOrigin}${route}`;
-              }
-
+              const expectedHref = `${siteOrigin}${route}`;
               if (href !== expectedHref) {
                 errors.push(
                   `Canonical URL mismatch in "${relPath}": got "${href}", expected "${expectedHref}".`
