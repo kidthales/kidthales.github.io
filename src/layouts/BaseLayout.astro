@@ -70,15 +70,25 @@ const fullTitle = Astro.url.pathname === '/' ? title : `${title} | ${siteTitle}`
     <header>
       <nav aria-label="Main navigation">
         <ul>
-          <li><strong><a href="/">kidthales</a></strong></li>
-        </ul>
-        <ul>
           <li>
             <a
               href="/"
+              class="brand"
               aria-current={Astro.url.pathname === '/' ? 'page' : undefined}
-            >Home</a>
+            >
+              <img
+                src="/images/logo.png"
+                alt=""
+                width="32"
+                height="32"
+                class="brand-logo"
+                style="background-color: light-dark(#555, #ddd);"
+              />
+              <span>kidthales</span>
+            </a>
           </li>
+        </ul>
+        <ul>
           <li>
             <a
               href="/words/"
@@ -110,3 +120,24 @@ const fullTitle = Astro.url.pathname === '/' ? title : `${title} | ${siteTitle}`
     </footer>
   </body>
 </html>
+
+<style>
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--pt-gap-compact);
+    font-weight: bold;
+    text-decoration: none;
+  }
+
+  .brand-logo {
+    width: 2rem;
+    height: 2rem;
+    border-radius: var(--pt-border-radius);
+    display: block;
+    object-fit: contain;
+    image-rendering: pixelated;
+    flex-shrink: 0;
+  }
+</style>
+
