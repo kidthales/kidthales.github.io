@@ -3,10 +3,10 @@ import {
   generateSpiderexDrill,
   parseSpiderexParams,
   formatSpiderexAsciiTab,
-  formatWarmupAsciiTab,
 } from '../lib/spiderex.ts';
 import {
   renderFingerBadgeSvg,
+  renderWarmupFretboardSvg,
   renderWarmupCards,
   renderTwisterSystems,
 } from '../lib/spiderex-render.ts';
@@ -21,7 +21,6 @@ const initialParams = parseSpiderexParams({
 
 const drill = generateSpiderexDrill(initialParams);
 const asciiTab = formatSpiderexAsciiTab(drill);
-const warmupTab = formatWarmupAsciiTab(drill.warmup, drill.params.strings);
 const modeLabel = drill.params.skip ? 'String-Skipping' : 'Adjacent';
 const seedHex = `0x${drill.seed.toString(16).padStart(8, '0')}`;
 ---
@@ -36,22 +35,32 @@ const seedHex = `0x${drill.seed.toString(16).padStart(8, '0')}`;
   <!-- Controls Bar -->
   <section class="spiderex-controls-panel card" aria-label="Spiderex Trainer Controls">
     <div class="spiderex-controls-grid">
+      <!-- Drill Date group: Date picker + Today button -->
       <div class="spiderex-field">
         <label for="spiderex-date">Drill Date</label>
-        <input
-          type="date"
-          id="spiderex-date"
-          name="date"
-          value={initialParams.date}
-          class="spiderex-input tabular-nums"
-        />
+        <div class="spiderex-date-group">
+          <input
+            type="date"
+            id="spiderex-date"
+            name="date"
+            value={initialParams.date}
+            class="spiderex-input tabular-nums"
+          />
+          <button type="button" id="spiderex-today" class="spiderex-btn">Today</button>
+        </div>
       </div>
 
-      <div class="spiderex-field spiderex-btn-group">
-        <button type="button" id="spiderex-today" class="spiderex-btn">Today</button>
-        <button type="button" id="spiderex-next" class="spiderex-btn">Next Drill</button>
+      <!-- Variant group: Segmented stepper [ ‹ ] v1 [ › ] -->
+      <div class="spiderex-field">
+        <label id="spiderex-variant-label">Variant</label>
+        <div class="spiderex-stepper-group" role="group" aria-labelledby="spiderex-variant-label">
+          <button type="button" id="spiderex-prev" class="spiderex-btn spiderex-stepper-btn" aria-label="Previous variant" disabled>‹</button>
+          <span id="spiderex-variant-badge" class="spiderex-variant-badge tabular-nums">v{initialParams.variant}</span>
+          <button type="button" id="spiderex-next" class="spiderex-btn spiderex-stepper-btn" aria-label="Next variant">›</button>
+        </div>
       </div>
 
+      <!-- Strings group: Dropdown with label -->
       <div class="spiderex-field">
         <label for="spiderex-strings">Strings</label>
         <select id="spiderex-strings" name="strings" class="spiderex-select">
@@ -61,14 +70,20 @@ const seedHex = `0x${drill.seed.toString(16).padStart(8, '0')}`;
         </select>
       </div>
 
+      <!-- Options group: String Skipping checkbox in aligned wrapper with label -->
       <div class="spiderex-field spiderex-checkbox-field">
-        <label class="spiderex-checkbox-label">
-          <input type="checkbox" id="spiderex-skip" name="skip" />
-          <span>String Skipping</span>
-        </label>
+        <span class="spiderex-field-label">Options</span>
+        <div class="spiderex-checkbox-wrapper">
+          <label class="spiderex-checkbox-label" for="spiderex-skip">
+            <input type="checkbox" id="spiderex-skip" name="skip" />
+            <span>String Skipping</span>
+          </label>
+        </div>
       </div>
 
+      <!-- Actions group: Copy Tab button anchored right -->
       <div class="spiderex-field spiderex-action-field">
+        <span class="spiderex-field-label" aria-hidden="true">&nbsp;</span>
         <button type="button" id="spiderex-copy" class="spiderex-btn spiderex-btn-primary">
           Copy Tab
         </button>
@@ -121,21 +136,19 @@ const seedHex = `0x${drill.seed.toString(16).padStart(8, '0')}`;
     {drill.params.date} (v{drill.params.variant}) — {drill.params.strings} Strings — {modeLabel} — Seed: {seedHex}
   </p>
 
-  <!-- Section 1: Warmup Grid & Collapsible Full-Neck Tab -->
+  <!-- Section 1: Warmup Grid -->
   <section class="spiderex-section" aria-label="Warmup Exercises">
-    <h3 class="spiderex-section-title">Warmup Patterns (Frets 1–12)</h3>
+    <h3 class="spiderex-section-title">Warmup Patterns</h3>
+    <div id="spiderex-warmup-fretboard" class="warmup-fretboard-wrap">
+      <Fragment set:html={renderWarmupFretboardSvg(drill.params.strings)} />
+    </div>
     <div id="spiderex-warmup-grid" class="warmup-grid">
       <Fragment set:html={renderWarmupCards(drill.warmup, drill.params.strings)} />
     </div>
-
-    <details class="spiderex-details warmup-details">
-      <summary class="spiderex-summary">Full-Neck ASCII Tablature (Frets 1–12 Ascending/Descending)</summary>
-      <pre class="spiderex-pre"><code id="spiderex-warmup-tab" class="spiderex-code tabular-nums">{warmupTab}</code></pre>
-    </details>
   </section>
 
   <!-- Section 2: Twister SVG Systems & Synchronized ASCII Tab -->
-  <section class="spiderex-section" aria-label="Twister 16-Bar Permutational Drill">
+  <section class="spiderex-section twister-section" aria-label="Twister 16-Bar Permutational Drill">
     <h3 class="spiderex-section-title">Twister Exercise (16 Bars — Chromatic Independence)</h3>
     <div id="spiderex-twister-systems" class="twister-systems-container">
       <Fragment set:html={renderTwisterSystems(drill)} />
@@ -175,48 +188,120 @@ const seedHex = `0x${drill.seed.toString(16).padStart(8, '0')}`;
     display: flex;
     flex-direction: column;
     gap: var(--pt-gap-compact);
+    margin: 0;
   }
 
-  .spiderex-field label {
+  .spiderex-field > label,
+  .spiderex-field-label {
+    display: block;
+    height: 1rem;
+    line-height: 1rem;
     font-size: var(--pt-font-size-xs, 0.75rem);
     font-weight: bold;
     color: var(--pt-muted-color);
+    margin: 0;
   }
 
-  .spiderex-btn-group {
-    flex-direction: row;
+  .spiderex-date-group {
+    display: inline-flex;
+    align-items: center;
     gap: var(--pt-gap-compact);
+    margin: 0;
+  }
+
+  .spiderex-stepper-group {
+    display: inline-flex;
+    align-items: center;
+    width: auto;
+    margin: 0;
   }
 
   .spiderex-input,
   .spiderex-select,
-  .spiderex-btn {
+  .spiderex-btn,
+  .spiderex-variant-badge {
+    height: 38px;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     font-family: var(--pt-font-sans);
     font-size: 0.95rem;
-    padding: var(--pt-form-y, 0.35rem) var(--pt-form-x, 0.65rem);
+    padding: 0 var(--pt-form-x, 0.65rem);
     border-radius: var(--pt-border-radius);
     border: 1px solid var(--pt-muted-border);
     background: var(--pt-card-bg);
     color: var(--pt-color);
+    line-height: 1;
+    margin: 0;
+  }
+
+  .spiderex-controls-panel input,
+  .spiderex-controls-panel select,
+  .spiderex-controls-panel button {
+    margin-bottom: 0;
+  }
+
+  .spiderex-input {
+    min-width: 140px;
+  }
+
+  .spiderex-select {
+    cursor: pointer;
   }
 
   .spiderex-btn {
     cursor: pointer;
     font-weight: bold;
+    user-select: none;
   }
 
-  .spiderex-btn:hover {
+  .spiderex-btn:hover:not(:disabled) {
     border-color: var(--pt-color);
   }
 
-  .spiderex-btn-primary {
-    background: var(--pt-primary-bg, var(--pt-surface));
+  .spiderex-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    border-color: var(--pt-muted-border);
+  }
+
+  .spiderex-stepper-btn {
+    width: 38px;
+    flex: 0 0 38px;
+    padding: 0;
+    font-size: 1.15rem;
+  }
+
+  #spiderex-prev {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  .spiderex-variant-badge {
+    min-width: 44px;
+    flex: 0 0 auto;
+    border-radius: 0;
+    border: 1px solid var(--pt-muted-border);
+    margin-inline-start: -1px;
+    font-family: var(--pt-font-mono);
+    font-weight: bold;
+    background: var(--pt-card-bg);
     color: var(--pt-color);
   }
 
-  .spiderex-checkbox-field {
-    justify-content: center;
-    padding-bottom: var(--pt-gap-compact);
+  #spiderex-next {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    margin-inline-start: -1px;
+  }
+
+  .spiderex-checkbox-wrapper {
+    height: 38px;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    margin: 0;
   }
 
   .spiderex-checkbox-label {
@@ -225,6 +310,16 @@ const seedHex = `0x${drill.seed.toString(16).padStart(8, '0')}`;
     gap: var(--pt-gap-compact);
     cursor: pointer;
     font-size: 0.95rem;
+    color: var(--pt-color);
+    margin: 0;
+  }
+
+  .spiderex-checkbox-label input[type="checkbox"] {
+    margin: 0;
+  }
+
+  .spiderex-btn-primary {
+    background: var(--pt-primary-bg, var(--pt-surface));
     color: var(--pt-color);
   }
 
@@ -275,9 +370,20 @@ const seedHex = `0x${drill.seed.toString(16).padStart(8, '0')}`;
     margin-bottom: var(--pt-gap-compact);
   }
 
+  .warmup-fretboard-wrap {
+    max-width: 280px;
+    width: 100%;
+    aspect-ratio: 280 / 148;
+    margin: 0 auto var(--pt-spacing) auto;
+    border: 1px solid var(--pt-muted-border);
+    border-radius: var(--pt-border-radius);
+    background: var(--pt-card-bg);
+    overflow: hidden;
+  }
+
   .warmup-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: var(--pt-spacing);
     margin-bottom: var(--pt-spacing);
   }
@@ -312,13 +418,18 @@ const seedHex = `0x${drill.seed.toString(16).padStart(8, '0')}`;
 
   .warmup-svg-wrap {
     width: 100%;
-    aspect-ratio: 280 / 178;
+    aspect-ratio: 210 / 44;
+  }
+
+  .twister-section {
+    max-width: 760px;
+    margin-inline: auto;
   }
 
   .twister-systems-container {
     display: flex;
     flex-direction: column;
-    gap: var(--pt-spacing);
+    gap: var(--pt-gap-compact);
     margin-bottom: var(--pt-spacing);
     width: 100%;
   }

@@ -9,13 +9,12 @@ import {
   computeSpiderexSeed,
   isValidDateString,
   getTodayUtcDate,
+  getTodayLocalDate,
   parseSpiderexParams,
-  getWarmupStringOrder,
   generateWarmupDrill,
   generateTwisterDrill,
   generateSpiderexDrill,
   formatSpiderexAsciiTab,
-  formatWarmupAsciiTab,
 } from '../src/lib/spiderex.ts';
 
 test('CANONICAL_PERMUTATIONS contains 24 unique valid 4-finger permutations', () => {
@@ -143,16 +142,11 @@ test('computeSpiderexSeed computes composite string and FNV-1a hash', () => {
   assert.notStrictEqual(seed, seedSkip);
 });
 
-test('getWarmupStringOrder returns consecutive strings in adjacent mode and outside-in in skipping mode', () => {
-  // Adjacent mode
-  assert.deepStrictEqual(getWarmupStringOrder(4, false), [0, 1, 2, 3]);
-  assert.deepStrictEqual(getWarmupStringOrder(6, false), [0, 1, 2, 3, 4, 5]);
-  assert.deepStrictEqual(getWarmupStringOrder(7, false), [0, 1, 2, 3, 4, 5, 6]);
-
-  // Skipping mode: outside-in alternating
-  assert.deepStrictEqual(getWarmupStringOrder(4, true), [0, 3, 1, 2]);
-  assert.deepStrictEqual(getWarmupStringOrder(6, true), [0, 5, 1, 4, 2, 3]);
-  assert.deepStrictEqual(getWarmupStringOrder(7, true), [0, 6, 1, 5, 2, 4, 3]);
+test('getTodayLocalDate returns ISO YYYY-MM-DD formatted local date', () => {
+  const localDate = getTodayLocalDate();
+  assert.strictEqual(typeof localDate, 'string');
+  assert.strictEqual(/^\d{4}-\d{2}-\d{2}$/.test(localDate), true, 'Must match YYYY-MM-DD');
+  assert.strictEqual(isValidDateString(localDate), true, 'Must be a valid calendar date');
 });
 
 test('generateWarmupDrill deterministically selects 1 permutation per bucket', () => {
@@ -166,9 +160,6 @@ test('generateWarmupDrill deterministically selects 1 permutation per bucket', (
   assert.strictEqual(drill1.patterns[1][0], 2, 'Pattern 2 must start with 2');
   assert.strictEqual(drill1.patterns[2][0], 3, 'Pattern 3 must start with 3');
   assert.strictEqual(drill1.patterns[3][0], 4, 'Pattern 4 must start with 4');
-
-  assert.deepStrictEqual(drill1.ascendingFrets, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
-  assert.deepStrictEqual(drill1.descendingFrets, [12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1]);
 });
 
 test('generateTwisterDrill satisfies all bar, note, and string-transition invariants in adjacent mode', () => {
@@ -300,11 +291,4 @@ test('formatSpiderexAsciiTab formats metadata header and 4 systems of 4 bars cor
   }
 });
 
-test('formatWarmupAsciiTab produces non-empty structured output', () => {
-  const drill = generateSpiderexDrill({ date: '2026-01-01', strings: 6, skip: false });
-  const warmupTab = formatWarmupAsciiTab(drill.warmup, 6);
-  assert.strictEqual(typeof warmupTab, 'string');
-  assert.strictEqual(warmupTab.includes('Warmup Exercise'), true);
-  assert.strictEqual(warmupTab.includes('e|'), true);
-  assert.strictEqual(warmupTab.includes('E|'), true);
-});
+

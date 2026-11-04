@@ -19,9 +19,6 @@ export interface SpiderexParams {
 
 export interface WarmupDrill {
   patterns: [Permutation, Permutation, Permutation, Permutation];
-  stringOrder: number[];
-  ascendingFrets: number[];
-  descendingFrets: number[];
 }
 
 export interface TwisterNote {
@@ -165,6 +162,17 @@ export function getTodayUtcDate(): string {
 }
 
 /**
+ * Returns today's local calendar date as YYYY-MM-DD in the user's local timezone.
+ */
+export function getTodayLocalDate(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
  * Parses and sanitizes Spiderex URL search parameters or plain object input.
  */
 export function parseSpiderexParams(input?: unknown): SpiderexParams {
@@ -234,52 +242,21 @@ export function parseSpiderexParams(input?: unknown): SpiderexParams {
 }
 
 /**
- * Returns string traversal order for warmup exercises:
- * - Consecutive 0..S-1 in adjacent mode
- * - Alternating outside-in 0, S-1, 1, S-2, ... in skipping mode
- */
-export function getWarmupStringOrder(strings: StringCount, skip: boolean): number[] {
-  if (!skip) {
-    return Array.from({ length: strings }, (_, i) => i);
-  }
-  const result: number[] = [];
-  let low = 0;
-  let high = strings - 1;
-  while (low <= high) {
-    result.push(low);
-    if (low !== high) {
-      result.push(high);
-    }
-    low++;
-    high--;
-  }
-  return result;
-}
-
-/**
  * Generates the deterministic Warmup drill:
  * Samples 1 permutation per bucket (1***, 2***, 3***, 4***) using Mulberry32.
  */
 export function generateWarmupDrill(
   prng: () => number,
-  strings: StringCount,
-  skip: boolean
+  _strings?: StringCount,
+  _skip?: boolean
 ): WarmupDrill {
   const p1 = BUCKETS[0][Math.floor(prng() * BUCKETS[0].length)] as Permutation;
   const p2 = BUCKETS[1][Math.floor(prng() * BUCKETS[1].length)] as Permutation;
   const p3 = BUCKETS[2][Math.floor(prng() * BUCKETS[2].length)] as Permutation;
   const p4 = BUCKETS[3][Math.floor(prng() * BUCKETS[3].length)] as Permutation;
 
-  const patterns: [Permutation, Permutation, Permutation, Permutation] = [p1, p2, p3, p4];
-  const stringOrder = getWarmupStringOrder(strings, skip);
-  const ascendingFrets = Array.from({ length: 12 }, (_, i) => i + 1);
-  const descendingFrets = Array.from({ length: 12 }, (_, i) => 12 - i);
-
   return {
-    patterns,
-    stringOrder,
-    ascendingFrets,
-    descendingFrets,
+    patterns: [p1, p2, p3, p4],
   };
 }
 
@@ -446,35 +423,4 @@ export function formatSpiderexAsciiTab(drill: SpiderexDrill): string {
   return `${headerLines.join('\n')}\n\n${systems.join('\n\n')}\n`;
 }
 
-/**
- * Formats the Warmup full-neck exercise as a structured ASCII tab.
- */
-export function formatWarmupAsciiTab(warmup: WarmupDrill, strings: StringCount): string {
-  const tuning = TUNINGS[strings];
-  const lines: string[] = [
-    'Warmup Exercise (Frets 1..12 Ascending, 12..1 Descending):',
-    `Patterns: ${warmup.patterns.map((p, i) => `[${i + 1}]: ${p.join('')}`).join('  ')}`,
-    `String Order: ${warmup.stringOrder.map((s) => tuning[s]).join(' -> ')}`,
-    '',
-  ];
 
-  for (let pIdx = 0; pIdx < warmup.patterns.length; pIdx++) {
-    const pattern = warmup.patterns[pIdx]!;
-    lines.push(`Pattern ${pIdx + 1} (${pattern.join('')}):`);
-
-    for (let s = 0; s < strings; s++) {
-      let line = `${tuning[s]}|`;
-      for (const fretBase of warmup.ascendingFrets) {
-        if (warmup.stringOrder.includes(s)) {
-          line += `-${pattern.map((f) => fretBase + f - 1).join('-')}-|`;
-        } else {
-          line += '------------|';
-        }
-      }
-      lines.push(line);
-    }
-    lines.push('');
-  }
-
-  return lines.join('\n');
-}

@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   renderFingerBadgeSvg,
-  renderWarmupBoxSvg,
+  renderWarmupFretboardSvg,
+  renderWarmupPatternSvg,
   renderWarmupCards,
   renderTwisterSystemSvg,
   renderTwisterSystems,
@@ -43,9 +44,8 @@ test('spiderex-render: renders 4 distinct shapes for fingers 1..4 with zero raw 
   }
 });
 
-test('spiderex-render: renders Warmup box with backing rect, frets, strings, and zero raw colours', () => {
-  const pattern = [1, 3, 2, 4] as const;
-  const svg = renderWarmupBoxSvg(pattern, 0, 6);
+test('spiderex-render: renders shared Warmup fretboard with backing rect, frets, strings, and zero raw colours', () => {
+  const svg = renderWarmupFretboardSvg(6);
 
   assert.ok(svg.includes('<rect width="100%" height="100%" fill="var(--pt-card-bg)" />'));
   assert.ok(svg.includes('Fret 1'));
@@ -53,13 +53,28 @@ test('spiderex-render: renders Warmup box with backing rect, frets, strings, and
   assert.ok(svg.includes('var(--pt-muted-border)'));
   assert.ok(svg.includes('var(--pt-muted-color)'));
 
-  // 4 string lines + fretboard badges + sequence badges
+  // 6 string lines & tuning labels + fretboard badges 1..4
   assert.ok(svg.includes('data-finger="1"'));
   assert.ok(svg.includes('data-finger="2"'));
   assert.ok(svg.includes('data-finger="3"'));
   assert.ok(svg.includes('data-finger="4"'));
 
-  const errors = lintColourLiterals(svg.replace(/=/g, ': '), 'warmup-box.svg');
+  const errors = lintColourLiterals(svg.replace(/=/g, ': '), 'warmup-fretboard.svg');
+  assert.equal(errors.length, 0);
+});
+
+test('spiderex-render: renders isolated Warmup pattern sequence SVG with Play prefix and zero raw colours', () => {
+  const pattern = [1, 3, 2, 4] as const;
+  const svg = renderWarmupPatternSvg(pattern);
+
+  assert.ok(svg.includes('<rect width="100%" height="100%" fill="var(--pt-card-bg)" />'));
+  assert.ok(svg.includes('Play:'));
+  assert.ok(svg.includes('data-finger="1"'));
+  assert.ok(svg.includes('data-finger="3"'));
+  assert.ok(svg.includes('data-finger="2"'));
+  assert.ok(svg.includes('data-finger="4"'));
+
+  const errors = lintColourLiterals(svg.replace(/=/g, ': '), 'warmup-pattern.svg');
   assert.equal(errors.length, 0);
 
   // Warmup cards grid
@@ -70,13 +85,11 @@ test('spiderex-render: renders Warmup box with backing rect, frets, strings, and
       [3, 1, 2, 4],
       [4, 1, 2, 3],
     ] as [[1, 2, 3, 4], [2, 1, 3, 4], [3, 1, 2, 4], [4, 1, 2, 3]],
-    stringOrder: [0, 1, 2, 3, 4, 5],
-    ascendingFrets: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
-    descendingFrets: [12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1],
   };
   const cardsHtml = renderWarmupCards(warmupDrill, 6);
   assert.ok(cardsHtml.includes('Pattern 1'));
   assert.ok(cardsHtml.includes('Pattern 4'));
+  assert.ok(cardsHtml.includes('warmup-pattern-svg'));
 });
 
 test('spiderex-render: renders Twister systems with backing rect, 16 notes per row, and 0.0000 CLS fixed geometry', () => {

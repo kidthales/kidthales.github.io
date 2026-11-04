@@ -89,14 +89,11 @@ function getStringY(stringIndex: number, totalStrings: StringCount, topY: number
 }
 
 /**
- * Renders a single 4-fret SVG diagram for a Warmup pattern.
- * ViewBox: 0 0 280 180
+ * Renders the shared 4-fret SVG fretboard diagram for Warmup exercises:
+ * Displays tuning labels, frets 1-4, and finger badges 1-4 on the fretboard.
+ * ViewBox: 0 0 280 148
  */
-export function renderWarmupBoxSvg(
-  pattern: Permutation,
-  patternIndex: number,
-  strings: StringCount
-): string {
+export function renderWarmupFretboardSvg(strings: StringCount): string {
   const tuning = TUNINGS[strings];
   const topY = 28;
   const bottomY = 118;
@@ -135,37 +132,47 @@ export function renderWarmupBoxSvg(
     fretboardBadges.push(renderFingerBadgeSvg(f as Finger, cx, cy, { radius: 9.5 }));
   }
 
-  // Render execution sequence along bottom row (y = 158)
-  const sequenceElements: string[] = [
-    `<text x="18" y="158" text-anchor="middle" dominant-baseline="central" fill="var(--pt-muted-color)" font-size="10" font-family="var(--pt-font-mono)">Play:</text>`,
-  ];
-  const seqXs = [65, 119, 173, 227];
-  for (let step = 0; step < 4; step++) {
-    const finger = pattern[step]!;
-    sequenceElements.push(
-      renderFingerBadgeSvg(finger, seqXs[step]!, 158, { radius: 8, fontSize: 9 })
-    );
-  }
-
-  return `<svg class="warmup-fretboard-svg" viewBox="0 0 280 178" width="100%" height="auto" role="img" aria-label="Pattern ${patternIndex + 1} 4-fret fretboard diagram: ${pattern.join('-')}">
+  return `<svg class="warmup-fretboard-svg" viewBox="0 0 280 148" width="100%" height="auto" role="img" aria-label="4-fret fretboard diagram: frets 1 to 4 with fingers 1 to 4">
   <rect width="100%" height="100%" fill="var(--pt-card-bg)" />
   ${stringElements.join('\n  ')}
   ${fretLines.join('\n  ')}
   ${fretboardBadges.join('\n  ')}
+</svg>`;
+}
+
+/**
+ * Renders an isolated execution sequence diagram:
+ * Shows 'Play:' followed by the 4 finger badges in execution order.
+ * ViewBox: 0 0 210 44
+ */
+export function renderWarmupPatternSvg(pattern: Permutation): string {
+  const sequenceElements: string[] = [
+    `<text x="24" y="22" text-anchor="middle" dominant-baseline="central" fill="var(--pt-muted-color)" font-size="11" font-weight="bold" font-family="var(--pt-font-mono)">Play:</text>`,
+  ];
+  const seqXs = [66, 104, 142, 180];
+  for (let step = 0; step < 4; step++) {
+    const finger = pattern[step]!;
+    sequenceElements.push(
+      renderFingerBadgeSvg(finger, seqXs[step]!, 22, { radius: 10, fontSize: 11 })
+    );
+  }
+
+  return `<svg class="warmup-pattern-svg" viewBox="0 0 210 44" width="100%" height="auto" role="img" aria-label="Play sequence: ${pattern.join('-')}">
+  <rect width="100%" height="100%" fill="var(--pt-card-bg)" />
   ${sequenceElements.join('\n  ')}
 </svg>`;
 }
 
 /**
- * Renders all 4 Warmup pattern cards for the responsive grid.
+ * Renders all 4 compact Warmup pattern cards for the responsive grid.
  */
-export function renderWarmupCards(warmup: WarmupDrill, strings: StringCount): string {
+export function renderWarmupCards(warmup: WarmupDrill, _strings?: StringCount): string {
   const cards: string[] = [];
 
   for (let i = 0; i < 4; i++) {
     const pattern = warmup.patterns[i]!;
     const patternLabel = pattern.join('-');
-    const svgBox = renderWarmupBoxSvg(pattern, i, strings);
+    const patternSvg = renderWarmupPatternSvg(pattern);
 
     cards.push(`<article class="card warmup-card" data-pattern-index="${i}">
   <header class="warmup-card-header">
@@ -173,7 +180,7 @@ export function renderWarmupCards(warmup: WarmupDrill, strings: StringCount): st
     <code class="warmup-pattern-code tabular-nums">${patternLabel}</code>
   </header>
   <div class="warmup-svg-wrap">
-    ${svgBox}
+    ${patternSvg}
   </div>
 </article>`);
   }
