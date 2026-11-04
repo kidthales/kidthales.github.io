@@ -7,6 +7,7 @@ import {
   fnv1a32,
   mulberry32,
   computeSpiderexSeed,
+  computeWarmupSeed,
   isValidDateString,
   getTodayUtcDate,
   getTodayLocalDate,
@@ -142,6 +143,21 @@ test('computeSpiderexSeed computes composite string and FNV-1a hash', () => {
   assert.notStrictEqual(seed, seedSkip);
 });
 
+test('computeWarmupSeed computes warmup composite string and FNV-1a hash', () => {
+  const seed = computeWarmupSeed({
+    date: '2026-01-01',
+    variant: 1,
+  });
+  const expected = fnv1a32('2026-01-01:v1');
+  assert.strictEqual(seed, expected);
+
+  const seedVariant = computeWarmupSeed({
+    date: '2026-01-01',
+    variant: 2,
+  });
+  assert.notStrictEqual(seed, seedVariant);
+});
+
 test('getTodayLocalDate returns ISO YYYY-MM-DD formatted local date', () => {
   const localDate = getTodayLocalDate();
   assert.strictEqual(typeof localDate, 'string');
@@ -151,8 +167,8 @@ test('getTodayLocalDate returns ISO YYYY-MM-DD formatted local date', () => {
 
 test('generateWarmupDrill deterministically selects 1 permutation per bucket', () => {
   const seed = 42;
-  const drill1 = generateWarmupDrill(mulberry32(seed), 6, false);
-  const drill2 = generateWarmupDrill(mulberry32(seed), 6, false);
+  const drill1 = generateWarmupDrill(mulberry32(seed));
+  const drill2 = generateWarmupDrill(mulberry32(seed));
 
   assert.deepStrictEqual(drill1, drill2);
   assert.strictEqual(drill1.patterns.length, 4);
@@ -165,7 +181,7 @@ test('generateWarmupDrill deterministically selects 1 permutation per bucket', (
 test('generateTwisterDrill satisfies all bar, note, and string-transition invariants in adjacent mode', () => {
   for (const strings of [4, 6, 7] as const) {
     const seed = 12345;
-    const warmup = generateWarmupDrill(mulberry32(seed), strings, false);
+    const warmup = generateWarmupDrill(mulberry32(seed));
     const twisterDirect = generateTwisterDrill(warmup.patterns, mulberry32(seed + 1), strings, false);
     assert.strictEqual(twisterDirect.bars.length, 16);
     assert.strictEqual(twisterDirect.notes.length, 64);
@@ -248,6 +264,56 @@ test('generateSpiderexDrill produces identical drills for identical parameters a
 
   const dSkip = generateSpiderexDrill({ date: '2026-01-01', variant: 1, strings: 6, skip: true });
   assert.notDeepStrictEqual(d1.twister.notes, dSkip.twister.notes);
+});
+
+test('Warmup patterns 1-4 are decoupled from strings count and skipping mode', () => {
+  const date = '2026-11-04';
+  const variant = 1;
+
+  // 1. Assert Warmup patterns 1–4 are identical across all string counts (4, 6, 7) for identical date and variant
+  const d4 = generateSpiderexDrill({ date, variant, strings: 4, skip: false });
+  const d6 = generateSpiderexDrill({ date, variant, strings: 6, skip: false });
+  const d7 = generateSpiderexDrill({ date, variant, strings: 7, skip: false });
+
+  assert.deepStrictEqual(d4.warmup.patterns, d6.warmup.patterns);
+  assert.deepStrictEqual(d6.warmup.patterns, d7.warmup.patterns);
+
+  // 2. Assert Warmup patterns 1–4 are identical between adjacent (skip: false) and string-skipping (skip: true) modes for identical date and variant
+  const d4Skip = generateSpiderexDrill({ date, variant, strings: 4, skip: true });
+  const d6Skip = generateSpiderexDrill({ date, variant, strings: 6, skip: true });
+  const d7Skip = generateSpiderexDrill({ date, variant, strings: 7, skip: true });
+
+  assert.deepStrictEqual(d4.warmup.patterns, d4Skip.warmup.patterns);
+  assert.deepStrictEqual(d6.warmup.patterns, d6Skip.warmup.patterns);
+  assert.deepStrictEqual(d7.warmup.patterns, d7Skip.warmup.patterns);
+
+  // Warmup patterns DO vary when date or variant changes
+  const dVariant2 = generateSpiderexDrill({ date, variant: 2, strings: 6, skip: false });
+  assert.notDeepStrictEqual(d6.warmup.patterns, dVariant2.warmup.patterns);
+
+  const dDate2 = generateSpiderexDrill({ date: '2026-11-05', variant, strings: 6, skip: false });
+  assert.notDeepStrictEqual(d6.warmup.patterns, dDate2.warmup.patterns);
+
+  // 3. Assert Twister note sequences and string transitions continue to vary correctly when skip or strings change
+  assert.notDeepStrictEqual(d6.twister.notes, d6Skip.twister.notes);
+  assert.notDeepStrictEqual(d6.twister.notes, d4.twister.notes);
+  assert.notDeepStrictEqual(d6.twister.notes, d7.twister.notes);
+
+  // Confirm string ranges and transition rules continue to hold
+  for (const n of d4.twister.notes) {
+    assert.strictEqual(n.stringIndex >= 0 && n.stringIndex < 4, true);
+  }
+  for (const n of d7.twister.notes) {
+    assert.strictEqual(n.stringIndex >= 0 && n.stringIndex < 7, true);
+  }
+  for (let i = 1; i < d6Skip.twister.notes.length; i++) {
+    const delta = Math.abs(d6Skip.twister.notes[i]!.stringIndex - d6Skip.twister.notes[i - 1]!.stringIndex);
+    assert.strictEqual(delta >= 2, true);
+  }
+  for (let i = 1; i < d6.twister.notes.length; i++) {
+    const delta = Math.abs(d6.twister.notes[i]!.stringIndex - d6.twister.notes[i - 1]!.stringIndex);
+    assert.strictEqual(delta === 1, true);
+  }
 });
 
 test('formatSpiderexAsciiTab formats metadata header and 4 systems of 4 bars correctly', () => {
