@@ -13,8 +13,10 @@ import {
 
 export async function getStaticPaths() {
   const allWorks = await getAllWorks();
-  // Filter out drafts: drafts are private and unrendered in static builds
-  const renderable = allWorks.filter((work) => work.data.draft !== true);
+  // Filter out drafts and external works: drafts are private, and external works link directly without detail pages
+  const renderable = allWorks.filter(
+    (work) => work.data.draft !== true && !work.data.external_url
+  );
 
   return renderable.map((work) => ({
     params: { slug: work.id },

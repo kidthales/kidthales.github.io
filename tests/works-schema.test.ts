@@ -148,9 +148,11 @@ test('worksSchema validates valid Tool, App, and Game works', () => {
     kind: 'app',
     description: 'An interactive web application.',
     published_on: '2026-03-05',
+    external_url: 'https://example.com/sample-app',
   });
   assert.strictEqual(validApp.kind, 'app');
   assert.strictEqual(validApp.draft, false); // Default false
+  assert.strictEqual(validApp.external_url, 'https://example.com/sample-app');
 
   // Valid Game
   const validGame = schema.parse({
@@ -158,8 +160,10 @@ test('worksSchema validates valid Tool, App, and Game works', () => {
     kind: 'game',
     description: 'A 2D Action Game Maker game.',
     published_on: '2026-03-10',
+    external_url: 'https://example.com/sample-game',
   });
   assert.strictEqual(validGame.kind, 'game');
+  assert.strictEqual(validGame.external_url, 'https://example.com/sample-game');
 });
 
 test('worksSchema enforces kind enum', () => {
@@ -261,6 +265,7 @@ test('worksSchema enforces biconditional retired_on <=> retirement_note (N10 sce
     published_on: '2024-01-01',
     retired_on: '2025-01-01',
     retirement_note: 'Superseded by modern rewrite.',
+    external_url: 'https://example.com/retired-app',
   });
   assert.strictEqual(validRetired.title, 'Valid Retired Work');
   assert.ok(validRetired.retired_on);
@@ -337,4 +342,91 @@ test('works formatDate outputs ISO YYYY-MM-DD', async () => {
   assert.strictEqual(formatDate(new Date('2026-03-01T00:00:00Z')), '2026-03-01');
   assert.strictEqual(formatDate('2026-03-01'), '2026-03-01');
   assert.strictEqual(formatDate(undefined), '');
+});
+
+test('worksSchema enforces published game and app works require external_url', () => {
+  const schema = createWorksSchema();
+
+  // Published game without external_url fails
+  assert.throws(
+    () =>
+      schema.parse({
+        title: 'Game Without URL',
+        kind: 'game',
+        description: 'Missing external URL.',
+        published_on: '2026-03-01',
+        draft: false,
+      }),
+    (err: any) =>
+      err.name === 'ZodError' &&
+      err.message.includes('Published game works require external_url')
+  );
+
+  // Published app without external_url fails
+  assert.throws(
+    () =>
+      schema.parse({
+        title: 'App Without URL',
+        kind: 'app',
+        description: 'Missing external URL.',
+        published_on: '2026-03-01',
+      }),
+    (err: any) =>
+      err.name === 'ZodError' &&
+      err.message.includes('Published app works require external_url')
+  );
+
+  // Published tool without external_url succeeds
+  const toolWithoutUrl = schema.parse({
+    title: 'Self-Hosted Tool',
+    kind: 'tool',
+    description: 'A self-hosted tool.',
+    published_on: '2026-03-01',
+  });
+  assert.strictEqual(toolWithoutUrl.external_url, undefined);
+
+  // Published tool with external_url succeeds
+  const toolWithUrl = schema.parse({
+    title: 'External Tool',
+    kind: 'tool',
+    description: 'An externally hosted tool.',
+    published_on: '2026-03-01',
+    external_url: 'https://example.com/tool',
+  });
+  assert.strictEqual(toolWithUrl.external_url, 'https://example.com/tool');
+
+  // Draft game without external_url succeeds
+  const draftGame = schema.parse({
+    title: 'Draft Game',
+    kind: 'game',
+    description: 'In development game.',
+    draft: true,
+  });
+  assert.strictEqual(draftGame.draft, true);
+  assert.strictEqual(draftGame.external_url, undefined);
+
+  // Draft app without external_url succeeds
+  const draftApp = schema.parse({
+    title: 'Draft App',
+    kind: 'app',
+    description: 'In development app.',
+    draft: true,
+  });
+  assert.strictEqual(draftApp.draft, true);
+  assert.strictEqual(draftApp.external_url, undefined);
+
+  // Invalid external_url fails Zod URL validation
+  assert.throws(
+    () =>
+      schema.parse({
+        title: 'Invalid URL Work',
+        kind: 'game',
+        description: 'Has bad URL.',
+        published_on: '2026-03-01',
+        external_url: 'not-a-valid-url',
+      }),
+    (err: any) =>
+      err.name === 'ZodError' &&
+      /invalid url/i.test(err.message)
+  );
 });
