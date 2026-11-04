@@ -557,6 +557,42 @@ test('canonical & sitemap gate: verifies redirect stubs require noindex, canonic
   assert.ok(sitemapLeakResult.errors.some((e) => e.includes('points to a page marked with noindex') || e.includes('points to a redirect page')));
 });
 
+test('canonical & sitemap gate: rejects sitemap entries that do not correspond to any generated HTML file in dist (e.g. external works)', (t) => {
+  const tmpDir = path.join(process.cwd(), 'tests', 'fixtures', 'temp-sitemap-missing-html');
+  const worksDir = path.join(tmpDir, 'works');
+  fs.mkdirSync(worksDir, { recursive: true });
+  t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
+
+  // Only root and /works/ exist
+  fs.writeFileSync(
+    path.join(tmpDir, 'index.html'),
+    '<!doctype html><html><head><link rel="canonical" href="https://kidthales.github.io/"><title>Home</title></head><body>Home</body></html>'
+  );
+  fs.writeFileSync(
+    path.join(worksDir, 'index.html'),
+    '<!doctype html><html><head><link rel="canonical" href="https://kidthales.github.io/works/"><title>Works</title></head><body>Works</body></html>'
+  );
+
+  // Sitemap mistakenly includes external work detail URL which has no generated HTML
+  fs.writeFileSync(
+    path.join(tmpDir, 'sitemap.xml'),
+    `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://kidthales.github.io/</loc></url>
+  <url><loc>https://kidthales.github.io/works/</loc></url>
+  <url><loc>https://kidthales.github.io/works/external-game/</loc></url>
+</urlset>`
+  );
+
+  const result = checkCanonicalAndSitemap(tmpDir);
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.errors.some((e) =>
+      e.includes('Sitemap URL "https://kidthales.github.io/works/external-game/" (route "/works/external-game/") does not correspond to any generated HTML file in dist.')
+    )
+  );
+});
+
 test('budgets gate: extractPageAssets and getPageType handle works vs workIsland correctly', () => {
   const htmlWithoutJs = `
     <html>
