@@ -2,13 +2,13 @@ import {
   generateSpiderexDrill,
   parseSpiderexParams,
   formatSpiderexAsciiTab,
-  formatWarmupAsciiTab,
-  getTodayUtcDate,
+  getTodayLocalDate,
   type SpiderexDrill,
   type SpiderexParams,
   type StringCount,
 } from '../lib/spiderex.ts';
 import {
+  renderWarmupFretboardSvg,
   renderWarmupCards,
   renderTwisterSystems,
 } from '../lib/spiderex-render.ts';
@@ -61,13 +61,15 @@ export class SpiderexTrainerElement extends HTMLElement {
   // DOM element references
   private dateInput: HTMLInputElement | null = null;
   private todayBtn: HTMLButtonElement | null = null;
+  private prevBtn: HTMLButtonElement | null = null;
   private nextBtn: HTMLButtonElement | null = null;
+  private variantBadge: HTMLElement | null = null;
   private stringsSelect: HTMLSelectElement | null = null;
   private skipCheckbox: HTMLInputElement | null = null;
   private copyBtn: HTMLButtonElement | null = null;
   private statusEl: HTMLElement | null = null;
+  private warmupFretboard: HTMLElement | null = null;
   private warmupGrid: HTMLElement | null = null;
-  private warmupTabCode: HTMLElement | null = null;
   private twisterSystems: HTMLElement | null = null;
   private twisterTabCode: HTMLElement | null = null;
   private metaSummary: HTMLElement | null = null;
@@ -81,7 +83,7 @@ export class SpiderexTrainerElement extends HTMLElement {
     const dsStrings = this.getAttribute('data-strings');
     const dsSkip = this.getAttribute('data-skip');
 
-    this.currentParams = parseSpiderexParams({
+    const baseParams: SpiderexParams = parseSpiderexParams({
       date: dsDate || '2026-01-01',
       variant: dsVariant ? parseInt(dsVariant, 10) : 1,
       strings: dsStrings ? (parseInt(dsStrings, 10) as StringCount) : 6,
@@ -89,23 +91,25 @@ export class SpiderexTrainerElement extends HTMLElement {
     });
 
     // Inspect URL search params if present
-    if (typeof window !== 'undefined' && window.location && window.location.search) {
-      const urlParams = parseSpiderexParams(window.location.search);
-      // If URL specifies parameters different from initial, update state
-      if (
-        urlParams.date !== this.currentParams.date ||
-        urlParams.variant !== this.currentParams.variant ||
-        urlParams.strings !== this.currentParams.strings ||
-        urlParams.skip !== this.currentParams.skip
-      ) {
-        this.currentParams = urlParams;
-        this.syncInputs();
-        this.regenerate(false);
-      } else {
-        this.currentDrill = generateSpiderexDrill(this.currentParams);
+    const hasSearch = typeof window !== 'undefined' && Boolean(window.location?.search);
+    const searchParams = hasSearch ? new URLSearchParams(window.location.search) : null;
+    const hasExplicitDate = searchParams?.has('date') ?? false;
+
+    if (hasSearch && searchParams) {
+      const urlParams = parseSpiderexParams(searchParams);
+      if (!hasExplicitDate) {
+        urlParams.date = getTodayLocalDate();
       }
+      this.currentParams = urlParams;
+      this.syncInputs();
+      this.regenerate(false);
     } else {
-      this.currentDrill = generateSpiderexDrill(this.currentParams);
+      this.currentParams = {
+        ...baseParams,
+        date: getTodayLocalDate(),
+      };
+      this.syncInputs();
+      this.regenerate(false);
     }
 
     this.attachEventListeners();
@@ -121,13 +125,15 @@ export class SpiderexTrainerElement extends HTMLElement {
   private bindDomElements(): void {
     this.dateInput = this.querySelector<HTMLInputElement>('#spiderex-date');
     this.todayBtn = this.querySelector<HTMLButtonElement>('#spiderex-today');
+    this.prevBtn = this.querySelector<HTMLButtonElement>('#spiderex-prev');
     this.nextBtn = this.querySelector<HTMLButtonElement>('#spiderex-next');
+    this.variantBadge = this.querySelector<HTMLElement>('#spiderex-variant-badge');
     this.stringsSelect = this.querySelector<HTMLSelectElement>('#spiderex-strings');
     this.skipCheckbox = this.querySelector<HTMLInputElement>('#spiderex-skip');
     this.copyBtn = this.querySelector<HTMLButtonElement>('#spiderex-copy');
     this.statusEl = this.querySelector<HTMLElement>('#spiderex-status');
+    this.warmupFretboard = this.querySelector<HTMLElement>('#spiderex-warmup-fretboard');
     this.warmupGrid = this.querySelector<HTMLElement>('#spiderex-warmup-grid');
-    this.warmupTabCode = this.querySelector<HTMLElement>('#spiderex-warmup-tab');
     this.twisterSystems = this.querySelector<HTMLElement>('#spiderex-twister-systems');
     this.twisterTabCode = this.querySelector<HTMLElement>('#spiderex-twister-tab');
     this.metaSummary = this.querySelector<HTMLElement>('#spiderex-meta-summary');
@@ -137,6 +143,8 @@ export class SpiderexTrainerElement extends HTMLElement {
     if (this.dateInput) this.dateInput.value = this.currentParams.date;
     if (this.stringsSelect) this.stringsSelect.value = String(this.currentParams.strings);
     if (this.skipCheckbox) this.skipCheckbox.checked = this.currentParams.skip;
+    if (this.variantBadge) this.variantBadge.textContent = `v${this.currentParams.variant}`;
+    if (this.prevBtn) this.prevBtn.disabled = this.currentParams.variant <= 1;
   }
 
   private attachEventListeners(): void {
@@ -144,19 +152,29 @@ export class SpiderexTrainerElement extends HTMLElement {
       if (this.dateInput && this.dateInput.value) {
         this.currentParams.date = this.dateInput.value;
         this.currentParams.variant = 1;
+        this.syncInputs();
         this.regenerate(true);
       }
     });
 
     this.todayBtn?.addEventListener('click', () => {
-      this.currentParams.date = getTodayUtcDate();
+      this.currentParams.date = getTodayLocalDate();
       this.currentParams.variant = 1;
       this.syncInputs();
       this.regenerate(true);
     });
 
+    this.prevBtn?.addEventListener('click', () => {
+      if (this.currentParams.variant > 1) {
+        this.currentParams.variant--;
+        this.syncInputs();
+        this.regenerate(true);
+      }
+    });
+
     this.nextBtn?.addEventListener('click', () => {
       this.currentParams.variant++;
+      this.syncInputs();
       this.regenerate(true);
     });
 
@@ -215,6 +233,10 @@ export class SpiderexTrainerElement extends HTMLElement {
     this.setAttribute('data-strings', String(params.strings));
     this.setAttribute('data-skip', String(params.skip));
 
+    // Update stepper & inputs
+    if (this.variantBadge) this.variantBadge.textContent = `v${params.variant}`;
+    if (this.prevBtn) this.prevBtn.disabled = params.variant <= 1;
+
     // Update Meta summary
     if (this.metaSummary) {
       const modeLabel = params.skip ? 'String-Skipping' : 'Adjacent';
@@ -222,12 +244,12 @@ export class SpiderexTrainerElement extends HTMLElement {
       this.metaSummary.textContent = `${params.date} (v${params.variant}) — ${params.strings} Strings — ${modeLabel} — Seed: ${seedHex}`;
     }
 
-    // Update Warmup cards & tab
+    // Update Warmup fretboard & cards
+    if (this.warmupFretboard) {
+      this.warmupFretboard.innerHTML = renderWarmupFretboardSvg(params.strings);
+    }
     if (this.warmupGrid) {
       this.warmupGrid.innerHTML = renderWarmupCards(warmup, params.strings);
-    }
-    if (this.warmupTabCode) {
-      this.warmupTabCode.textContent = formatWarmupAsciiTab(warmup, params.strings);
     }
 
     // Update Twister systems & tab
