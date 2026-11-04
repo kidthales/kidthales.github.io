@@ -148,7 +148,7 @@ const seedHex = `0x${drill.seed.toString(16).padStart(8, '0')}`;
   </section>
 
   <!-- Section 2: Twister SVG Systems & Synchronized ASCII Tab -->
-  <section class="spiderex-section" aria-label="Twister 16-Bar Permutational Drill">
+  <section class="spiderex-section twister-section" aria-label="Twister 16-Bar Permutational Drill">
     <h3 class="spiderex-section-title">Twister Exercise (16 Bars — Chromatic Independence)</h3>
     <div id="spiderex-twister-systems" class="twister-systems-container">
       <Fragment set:html={renderTwisterSystems(drill)} />
@@ -421,10 +421,15 @@ const seedHex = `0x${drill.seed.toString(16).padStart(8, '0')}`;
     aspect-ratio: 210 / 44;
   }
 
+  .twister-section {
+    max-width: 760px;
+    margin-inline: auto;
+  }
+
   .twister-systems-container {
     display: flex;
     flex-direction: column;
-    gap: var(--pt-spacing);
+    gap: var(--pt-gap-compact);
     margin-bottom: var(--pt-spacing);
     width: 100%;
   }
