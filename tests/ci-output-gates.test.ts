@@ -522,13 +522,25 @@ test('canonical & sitemap gate: verifies redirect stubs require noindex, canonic
   assert.equal(noNoindexResult.ok, false);
   assert.ok(noNoindexResult.errors.some((e) => e.includes('must have <meta name="robots" content="noindex">')));
 
-  // Failure scenario 2: redirect stub canonical pointing to self (/spiderex/) instead of destination
+  // Permitted scenario: redirect stub self-canonical (/spiderex/)
   fs.writeFileSync(
     path.join(spiderexDir, 'index.html'),
     `<!doctype html><html><head>
       <meta http-equiv="refresh" content="0;url=/works/spiderex/" />
       <meta name="robots" content="noindex" />
       <link rel="canonical" href="https://kidthales.github.io/spiderex/" />
+    </head><body><p>Redirecting...</p></body></html>`
+  );
+  const selfCanonicalResult = checkCanonicalAndSitemap(tmpDir);
+  assert.equal(selfCanonicalResult.ok, true);
+
+  // Failure scenario 2: redirect stub canonical pointing to unrelated URL
+  fs.writeFileSync(
+    path.join(spiderexDir, 'index.html'),
+    `<!doctype html><html><head>
+      <meta http-equiv="refresh" content="0;url=/works/spiderex/" />
+      <meta name="robots" content="noindex" />
+      <link rel="canonical" href="https://kidthales.github.io/unrelated-page/" />
     </head><body><p>Redirecting...</p></body></html>`
   );
   const badCanonicalResult = checkCanonicalAndSitemap(tmpDir);
