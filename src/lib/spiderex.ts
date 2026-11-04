@@ -133,6 +133,15 @@ export function computeSpiderexSeed(params: SpiderexParams): number {
 }
 
 /**
+ * Derives canonical warmup seed string and 32-bit FNV-1a seed.
+ * Format: `${params.date}:v${params.variant}`
+ */
+export function computeWarmupSeed(params: Pick<SpiderexParams, 'date' | 'variant'>): number {
+  const composite = `${params.date}:v${params.variant}`;
+  return fnv1a32(composite);
+}
+
+/**
  * Validates ISO YYYY-MM-DD date representation and real calendar validity.
  */
 export function isValidDateString(dateStr: string): boolean {
@@ -245,11 +254,7 @@ export function parseSpiderexParams(input?: unknown): SpiderexParams {
  * Generates the deterministic Warmup drill:
  * Samples 1 permutation per bucket (1***, 2***, 3***, 4***) using Mulberry32.
  */
-export function generateWarmupDrill(
-  prng: () => number,
-  _strings?: StringCount,
-  _skip?: boolean
-): WarmupDrill {
+export function generateWarmupDrill(prng: () => number): WarmupDrill {
   const p1 = BUCKETS[0][Math.floor(prng() * BUCKETS[0].length)] as Permutation;
   const p2 = BUCKETS[1][Math.floor(prng() * BUCKETS[1].length)] as Permutation;
   const p3 = BUCKETS[2][Math.floor(prng() * BUCKETS[2].length)] as Permutation;
@@ -354,10 +359,13 @@ export function generateTwisterDrill(
 export function generateSpiderexDrill(rawParams?: unknown): SpiderexDrill {
   const params = parseSpiderexParams(rawParams);
   const seed = computeSpiderexSeed(params);
-  const prng = mulberry32(seed);
+  const warmupSeed = computeWarmupSeed(params);
 
-  const warmup = generateWarmupDrill(prng, params.strings, params.skip);
-  const twister = generateTwisterDrill(warmup.patterns, prng, params.strings, params.skip);
+  const warmupPrng = mulberry32(warmupSeed);
+  const twisterPrng = mulberry32(seed);
+
+  const warmup = generateWarmupDrill(warmupPrng);
+  const twister = generateTwisterDrill(warmup.patterns, twisterPrng, params.strings, params.skip);
 
   return {
     params,
