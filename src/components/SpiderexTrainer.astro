@@ -188,9 +188,10 @@ const seedHex = `0x${drill.seed.toString(16).padStart(8, '0')}`;
     display: flex;
     flex-direction: column;
     gap: var(--pt-gap-compact);
+    margin: 0;
   }
 
-  .spiderex-field label,
+  .spiderex-field > label,
   .spiderex-field-label {
     display: block;
     height: 1rem;
@@ -198,17 +199,21 @@ const seedHex = `0x${drill.seed.toString(16).padStart(8, '0')}`;
     font-size: var(--pt-font-size-xs, 0.75rem);
     font-weight: bold;
     color: var(--pt-muted-color);
+    margin: 0;
   }
 
   .spiderex-date-group {
     display: inline-flex;
     align-items: center;
     gap: var(--pt-gap-compact);
+    margin: 0;
   }
 
   .spiderex-stepper-group {
     display: inline-flex;
     align-items: center;
+    width: auto;
+    margin: 0;
   }
 
   .spiderex-input,
@@ -228,6 +233,13 @@ const seedHex = `0x${drill.seed.toString(16).padStart(8, '0')}`;
     background: var(--pt-card-bg);
     color: var(--pt-color);
     line-height: 1;
+    margin: 0;
+  }
+
+  .spiderex-controls-panel input,
+  .spiderex-controls-panel select,
+  .spiderex-controls-panel button {
+    margin-bottom: 0;
   }
 
   .spiderex-input {
@@ -256,6 +268,7 @@ const seedHex = `0x${drill.seed.toString(16).padStart(8, '0')}`;
 
   .spiderex-stepper-btn {
     width: 38px;
+    flex: 0 0 38px;
     padding: 0;
     font-size: 1.15rem;
   }
@@ -265,20 +278,22 @@ const seedHex = `0x${drill.seed.toString(16).padStart(8, '0')}`;
     border-bottom-right-radius: 0;
   }
 
-  #spiderex-next {
-    border-top-left-radius: 0;
-    border-bottom-left-radius: 0;
-  }
-
   .spiderex-variant-badge {
     min-width: 44px;
+    flex: 0 0 auto;
     border-radius: 0;
-    border-left: 0;
-    border-right: 0;
+    border: 1px solid var(--pt-muted-border);
+    margin-inline-start: -1px;
     font-family: var(--pt-font-mono);
     font-weight: bold;
     background: var(--pt-card-bg);
     color: var(--pt-color);
+  }
+
+  #spiderex-next {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    margin-inline-start: -1px;
   }
 
   .spiderex-checkbox-wrapper {
@@ -286,6 +301,7 @@ const seedHex = `0x${drill.seed.toString(16).padStart(8, '0')}`;
     box-sizing: border-box;
     display: inline-flex;
     align-items: center;
+    margin: 0;
   }
 
   .spiderex-checkbox-label {
@@ -295,6 +311,11 @@ const seedHex = `0x${drill.seed.toString(16).padStart(8, '0')}`;
     cursor: pointer;
     font-size: 0.95rem;
     color: var(--pt-color);
+    margin: 0;
+  }
+
+  .spiderex-checkbox-label input[type="checkbox"] {
+    margin: 0;
   }
 
   .spiderex-btn-primary {
@@ -350,7 +371,9 @@ const seedHex = `0x${drill.seed.toString(16).padStart(8, '0')}`;
   }
 
   .warmup-fretboard-wrap {
-    max-width: 480px;
+    max-width: 280px;
+    width: 100%;
+    aspect-ratio: 280 / 148;
     margin: 0 auto var(--pt-spacing) auto;
     border: 1px solid var(--pt-muted-border);
     border-radius: var(--pt-border-radius);
