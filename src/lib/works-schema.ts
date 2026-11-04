@@ -63,10 +63,12 @@ export function assertCanReserveWorkSlug(newReservedSlug: string, publishedSlugs
 
 export function refineWork(
   data: {
+    kind?: WorkKind;
     draft?: boolean;
     published_on?: Date;
     retired_on?: Date;
     retirement_note?: string;
+    external_url?: string;
   },
   ctx: z.RefinementCtx
 ): void {
@@ -78,6 +80,15 @@ export function refineWork(
       code: 'custom',
       message: 'Published works require published_on',
       path: ['published_on'],
+    });
+  }
+
+  // Published game and app entries require external_url
+  if (!isDraft && (data.kind === 'game' || data.kind === 'app') && !data.external_url) {
+    ctx.addIssue({
+      code: 'custom',
+      message: `Published ${data.kind} works require external_url`,
+      path: ['external_url'],
     });
   }
 
@@ -109,6 +120,7 @@ export const workBaseSchema = z
     published_on: z.coerce.date().optional(),
     retired_on: z.coerce.date().optional(),
     retirement_note: z.string().optional(),
+    external_url: z.string().url().optional(),
   })
   .strict();
 

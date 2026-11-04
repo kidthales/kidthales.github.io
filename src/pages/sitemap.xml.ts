@@ -27,9 +27,11 @@ export const GET: APIRoute = async ({ site }) => {
 
   const allWorks = await getAllWorks();
 
-  // Non-draft works (both active and retired) are included.
-  // Exclude drafts.
-  const eligibleWorks = allWorks.filter((work) => work.data.draft !== true);
+  // Non-draft self-hosted works (both active and retired) are included.
+  // Exclude drafts and external works (which link directly outbound without detail pages).
+  const eligibleWorks = allWorks.filter(
+    (work) => work.data.draft !== true && !work.data.external_url
+  );
   const workUrls = eligibleWorks.map((work) => `${baseUrl}/works/${work.id}/`);
 
   const allUrls = [...staticUrls, ...entryUrls, ...workUrls];

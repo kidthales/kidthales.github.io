@@ -5,12 +5,10 @@ on:
     branches:
       - next
       - main
-      - 'src-**'
   pull_request:
     branches:
       - next
       - main
-      - 'src-**'
   workflow_dispatch:
 
 permissions:

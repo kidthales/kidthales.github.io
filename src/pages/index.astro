@@ -52,7 +52,13 @@ const latestWorks = await getLatestPublishedWorks(5);
             return (
               <li>
                 <span aria-hidden="true">{glyph}</span>{' '}
-                <a href={`/works/${work.id}/`}>{work.data.title}</a>
+                {work.data.external_url ? (
+                  <a href={work.data.external_url} rel="external">
+                    {work.data.title} <span aria-hidden="true">↗</span>
+                  </a>
+                ) : (
+                  <a href={`/works/${work.id}/`}>{work.data.title}</a>
+                )}
                 {' '}&mdash; {work.data.description}
               </li>
             );
