@@ -291,12 +291,23 @@ try {
     Write-Host " BaseRef: $BaseRef" -ForegroundColor Gray
     Write-Host "====================================================" -ForegroundColor Cyan
 
+    $GateResults = [ordered]@{
+        "gate0_workflow_contract"           = "fail"
+        "gate1_action_pins_and_leaks"       = "fail"
+        "gate2_pwsh_ast"                    = "fail"
+        "gate3_typecheck_contrast_and_unit" = "fail"
+        "gate4_prod_build_and_structural"   = "fail"
+        "gate5_fixture_axe_and_budgets"     = "fail"
+        "gate6_lints_errata_and_negative"   = "fail"
+    }
+
     # -------------------------------------------------------------
     # Gate 0: Workflow Single-Source Contract & Step Allowlist
     # -------------------------------------------------------------
     Write-Group "Gate 0: Workflow Single-Source Contract"
     $wfDir = Join-Path $RootDir ".github/workflows"
     Test-Gate0Workflows -TargetWorkflowsDir $wfDir
+    $GateResults["gate0_workflow_contract"] = "pass"
     Write-Host "  -> All workflows conform to ci-local.ps1 -CI or exact step allowlist." -ForegroundColor Green
     Write-EndGroup
 
@@ -341,6 +352,7 @@ try {
         Write-EndGroup
         throw "Gate 1 Failed: Agent or scratch file leak detected."
     }
+    $GateResults["gate1_action_pins_and_leaks"] = "pass"
     Write-Host "  -> Action commit SHA pins and agent leak audits passed." -ForegroundColor Green
     Write-EndGroup
 
@@ -363,6 +375,7 @@ try {
         Write-EndGroup
         throw "Gate 2 Failed: $ParseErrors PowerShell script(s) failed AST parse validation."
     }
+    $GateResults["gate2_pwsh_ast"] = "pass"
     Write-Host "  -> PowerShell AST validation passed ($($Ps1Files.Count) script(s))." -ForegroundColor Green
     Write-EndGroup
 
@@ -403,6 +416,7 @@ try {
         throw "CI Step Failed: npm test returned exit code $LASTEXITCODE"
     }
     Write-EndGroup
+    $GateResults["gate3_typecheck_contrast_and_unit"] = "pass"
 
     # -------------------------------------------------------------
     # Step 6: Production Build (clean-room .astro/ & dist/)
@@ -474,6 +488,7 @@ try {
     Copy-Item -Recurse -Force (Join-Path $RootDir "dist") $prodDistBackup
     Write-Host "  -> Production dist/ staged to temporary cache." -ForegroundColor Green
     Write-EndGroup
+    $GateResults["gate4_prod_build_and_structural"] = "pass"
 
     # -------------------------------------------------------------
     # Step 9: Fixture Build (clean-room .astro/ & dist/)
@@ -542,6 +557,7 @@ try {
         throw "CI Step Failed: Weight Budgets gate returned exit code $LASTEXITCODE"
     }
     Write-EndGroup
+    $GateResults["gate5_fixture_axe_and_budgets"] = "pass"
 
     # -------------------------------------------------------------
     # Step 13: CSS & Integrity Lints
@@ -638,6 +654,7 @@ try {
     }
     Write-Host "  -> Production dist/ successfully restored and verified (dist/index.html exists)." -ForegroundColor Green
     Write-EndGroup
+    $GateResults["gate6_lints_errata_and_negative"] = "pass"
 
     Write-Host "`n====================================================" -ForegroundColor Green
     Write-Host " All CI Gates PASSED" -ForegroundColor Green
@@ -663,9 +680,20 @@ try {
             Write-Host "`n  -> Skipping local CI receipt generation (seldon binary not found)." -ForegroundColor Gray
         } else {
             Write-Host "`n[Receipt] Recording local CI receipt via seldon ci receipt..." -ForegroundColor Yellow
-            $ReceiptArgs = @("ci", "receipt", "--dir", $RootDir, "--script-path", "scripts/ci-local.ps1")
+            $isCleanTree = $false
+            $statusOutput = & git -C $RootDir status --porcelain 2>$null
+            if ($LASTEXITCODE -eq 0 -and [string]::IsNullOrWhiteSpace($statusOutput)) {
+                $isCleanTree = $true
+            }
+
+            $GatePairs = ($GateResults.GetEnumerator() | ForEach-Object { "$($_.Key)=$($_.Value)" }) -join ","
+            $ReceiptArgs = @("ci", "receipt", "--dir", $RootDir, "--script-path", "scripts/ci-local.ps1", "--gates", $GatePairs)
             & $SeldonBin @ReceiptArgs
-            if ($LASTEXITCODE -ne 0) {
+            $receiptExitCode = $LASTEXITCODE
+            if ($receiptExitCode -ne 0) {
+                if ($isCleanTree) {
+                    throw "Gate Failure: seldon ci receipt failed with exit code $receiptExitCode on clean working tree."
+                }
                 Write-Host "  -> Note: seldon ci receipt skipped or returned non-zero (working tree may have uncommitted changes)." -ForegroundColor Yellow
             } else {
                 Write-Host "  -> Local CI receipt written to .ci-local/receipt.json." -ForegroundColor Green
