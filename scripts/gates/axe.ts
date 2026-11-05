@@ -409,40 +409,33 @@ if (isMain) {
 
   (async () => {
     try {
-      if (isReport) {
-        console.log(`[a11y-report] Generating accessibility and performance reports for "${distDir}"...`);
-        const result = await runAxeAudit({ distDir, allowlistPath, reportOnly: true });
+      console.log(`[axe-gate] Auditing WCAG 2.2 A/AA accessibility and performance on "${distDir}"...`);
+      const result = await runAxeAudit({ distDir, allowlistPath, reportOnly: isReport });
 
-        console.log('\n--- WCAG AAA Body Text Contrast Report (color-contrast-enhanced) ---');
-        for (const line of result.reportLines.aaaRatioLines) {
-          console.log(`  ${line}`);
-        }
+      console.log(
+        `[axe-gate] Scanned ${result.totalPagesScanned} pages in light and dark (${result.totalPagesScanned * 2} runs).`
+      );
 
-        console.log('\n--- Cumulative Layout Shift (CLS) Report ---');
-        for (const line of result.reportLines.clsLines) {
-          console.log(`  ${line}`);
-        }
-
-        console.log('\n[a11y-report] Report complete.');
-        process.exit(0);
-      } else {
-        console.log(`[axe-gate] Auditing WCAG 2.2 A/AA accessibility on "${distDir}"...`);
-        const result = await runAxeAudit({ distDir, allowlistPath, reportOnly: false });
-
-        console.log(
-          `[axe-gate] Scanned ${result.totalPagesScanned} pages in light and dark (${result.totalPagesScanned * 2} runs).`
-        );
-
-        if (!result.ok) {
-          console.error(`\n[axe-gate] FAILED with ${result.errors.length} issue(s):`);
-          for (const err of result.errors) {
-            console.error(`  - ${err}`);
-          }
-          process.exit(1);
-        }
-
-        console.log(`\n[axe-gate] All WCAG 2.2 A/AA axe checks PASSED with 0 violations and 0 unallowed incompletes.`);
+      console.log('\n--- WCAG AAA Body Text Contrast Report (color-contrast-enhanced) ---');
+      for (const line of result.reportLines.aaaRatioLines) {
+        console.log(`  ${line}`);
       }
+
+      console.log('\n--- Cumulative Layout Shift (CLS) Report ---');
+      for (const line of result.reportLines.clsLines) {
+        console.log(`  ${line}`);
+      }
+
+      if (!result.ok && !isReport) {
+        console.error(`\n[axe-gate] FAILED with ${result.errors.length} issue(s):`);
+        for (const err of result.errors) {
+          console.error(`  - ${err}`);
+        }
+        process.exit(1);
+      }
+
+      console.log(`\n[axe-gate] All WCAG 2.2 A/AA axe checks and reports PASSED with 0 violations and 0 unallowed incompletes.`);
+      process.exit(0);
     } catch (err: unknown) {
       console.error('[axe-gate] Fatal error during audit:', err);
       process.exit(1);

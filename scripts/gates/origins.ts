@@ -282,8 +282,9 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
     try {
       const mod = await import('../../src/works-islands.ts');
       manifest = mod.worksIslands || [];
-    } catch {
-      // fallback
+    } catch (err) {
+      console.error('Origin Gate FAILED: Unable to load src/works-islands manifest (fail-closed):', err);
+      process.exit(1);
     }
   }
 

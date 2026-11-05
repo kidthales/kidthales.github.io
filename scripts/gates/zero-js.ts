@@ -53,6 +53,8 @@ export function checkZeroJs(
   );
 
   const encounteredJsRoutes = new Set<string>();
+  const allJsFiles: string[] = [];
+  const referencedJsFiles = new Set<string>();
 
   // Walk distDir
   function walk(currentDir: string) {
@@ -66,15 +68,8 @@ export function checkZeroJs(
 
         // Check standalone .js files in dist
         if (relPath.endsWith('.js') || relPath.endsWith('.mjs')) {
-          // If there are JS files output into dist, they must be traceable to an allowed route
-          // But outside /works/**, there must be NO reachable client .js!
-          // Note: .prerender is internal Astro prerender cache, check if it's under distroot
           if (!relPath.startsWith('.prerender/')) {
-            // Is this JS bundle associated with an allowed works route?
-            // If manifest is empty, any client .js in dist is forbidden.
-            if (jsAllowedRoutes.size === 0) {
-              errors.push(`Forbidden client JavaScript file in dist: ${relPath}`);
-            }
+            allJsFiles.push(relPath);
           }
         }
 
@@ -83,15 +78,44 @@ export function checkZeroJs(
           const route = routeFromHtmlPath(relPath);
           const content = fs.readFileSync(fullPath, 'utf8');
 
-          // Check for <script tags
-          // Matches <script followed by whitespace, >, or /
-          // Exclude JSON-LD or spec if type="application/ld+json" if ever used?
-          // The spec states: "no <script in any HTML and no reachable .js, except routes declared with js: true in src/works-islands.ts"
           const hasScriptTag = /<script\b/i.test(content);
 
           if (hasScriptTag) {
             if (jsAllowedRoutes.has(route)) {
               encounteredJsRoutes.add(route);
+
+              // Extract referenced scripts from this allowed island route
+              const scriptSrcRegex = /<script\b[^>]*?\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))[^>]*>/gi;
+              let match: RegExpExecArray | null;
+              while ((match = scriptSrcRegex.exec(content)) !== null) {
+                const srcVal = match[1] ?? match[2] ?? match[3];
+                if (srcVal) {
+                  let normSrc = srcVal.trim().replace(/^['"]|['"]$/g, '');
+                  if (normSrc.startsWith('/')) {
+                    normSrc = normSrc.slice(1);
+                  } else {
+                    const htmlDir = path.dirname(relPath).replace(/\\/g, '/');
+                    normSrc = path.posix.join(htmlDir, normSrc);
+                  }
+                  referencedJsFiles.add(normSrc);
+                }
+              }
+
+              // Also extract modulepreload links associated with scripts
+              const preloadRegex = /<link\b[^>]*?\brel\s*=\s*['"]modulepreload['"][^>]*?\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))[^>]*>/gi;
+              while ((match = preloadRegex.exec(content)) !== null) {
+                const hrefVal = match[1] ?? match[2] ?? match[3];
+                if (hrefVal) {
+                  let normHref = hrefVal.trim().replace(/^['"]|['"]$/g, '');
+                  if (normHref.startsWith('/')) {
+                    normHref = normHref.slice(1);
+                  } else {
+                    const htmlDir = path.dirname(relPath).replace(/\\/g, '/');
+                    normHref = path.posix.join(htmlDir, normHref);
+                  }
+                  referencedJsFiles.add(normHref);
+                }
+              }
             } else {
               errors.push(
                 `Forbidden <script> tag found in HTML route "${route}" (${relPath}) without manifest grant.`
@@ -104,6 +128,17 @@ export function checkZeroJs(
   }
 
   walk(distDir);
+
+  // Verify every .js/.mjs in dist is referenced by an allowed island route
+  for (const jsFile of allJsFiles) {
+    if (jsAllowedRoutes.size === 0) {
+      errors.push(`Forbidden client JavaScript file in dist: ${jsFile}`);
+    } else if (!referencedJsFiles.has(jsFile)) {
+      errors.push(
+        `Unreferenced client JavaScript file in dist: ${jsFile}. Every .js/.mjs file in dist must be referenced by <script src="..."> on an allowed island route.`
+      );
+    }
+  }
 
   // Check for stale declared routes: declared route with js: true with no script fails as stale
   for (const item of manifest) {
@@ -135,8 +170,9 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
     try {
       const mod = await import('../../src/works-islands.ts');
       manifest = mod.worksIslands || [];
-    } catch {
-      // empty fallback
+    } catch (err) {
+      console.error('Zero-JS Gate FAILED: Unable to load src/works-islands manifest (fail-closed):', err);
+      process.exit(1);
     }
   }
 

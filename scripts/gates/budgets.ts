@@ -75,11 +75,13 @@ export function extractPageAssets(htmlContent: string): { cssAssets: string[]; j
  */
 export function getPageType(
   relHtmlPath: string,
-  hasJs: boolean = false
+  hasJs: boolean = false,
+  htmlContent: string = ''
 ): 'note' | 'essay' | 'paper' | 'index' | 'work' | 'workIsland' | null {
   const normalized = relHtmlPath.replace(/\\/g, '/');
   if (
     normalized === 'index.html' ||
+    normalized === '404.html' ||
     normalized === 'words/index.html' ||
     normalized === 'words/notes/index.html' ||
     normalized === 'words/essays/index.html' ||
@@ -91,9 +93,29 @@ export function getPageType(
   }
 
   if (normalized.startsWith('words/')) {
-    // In fixture build, determine kind by fixture name or inspect content
-    if (normalized.includes('essay')) return 'essay';
-    if (normalized.includes('paper')) return 'paper';
+    if (htmlContent) {
+      if (
+        /\bdata-entry-form\s*=\s*['"]essay['"]/i.test(htmlContent) ||
+        /\bclass\s*=\s*['"][^'"]*entry-form[^'"]*['"][^>]*>[\s\S]*?\bEssay\b/i.test(htmlContent)
+      ) {
+        return 'essay';
+      }
+      if (
+        /\bdata-entry-form\s*=\s*['"]paper['"]/i.test(htmlContent) ||
+        /\bclass\s*=\s*['"][^'"]*entry-form[^'"]*['"][^>]*>[\s\S]*?\bPaper\b/i.test(htmlContent)
+      ) {
+        return 'paper';
+      }
+      if (
+        /\bdata-entry-form\s*=\s*['"]note['"]/i.test(htmlContent) ||
+        /\bclass\s*=\s*['"][^'"]*entry-form[^'"]*['"][^>]*>[\s\S]*?\bNote\b/i.test(htmlContent)
+      ) {
+        return 'note';
+      }
+    }
+    if (normalized.startsWith('words/essays/')) return 'essay';
+    if (normalized.startsWith('words/papers/')) return 'paper';
+    if (normalized.startsWith('words/notes/')) return 'note';
     return 'note';
   }
 
@@ -208,7 +230,7 @@ export function checkBudgets(
         const raw = fs.readFileSync(fullPath);
         const htmlContent = raw.toString('utf8');
         const { cssAssets, jsAssets } = extractPageAssets(htmlContent);
-        const pageType = getPageType(relPath, jsAssets.length > 0);
+        const pageType = getPageType(relPath, jsAssets.length > 0, htmlContent);
 
         if (pageType && budgetConfig.pageBudgets?.[pageType]) {
           const budget = budgetConfig.pageBudgets[pageType];

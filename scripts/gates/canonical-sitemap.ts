@@ -218,6 +218,20 @@ export function checkCanonicalAndSitemap(
   // The check above already caught that, but let's confirm withdrawn / expunged notes in fixture build
   // (which have noindex: true) are absent from sitemap.
 
+  // Reverse completeness check (dist -> sitemap.xml):
+  // Every indexable HTML route in dist must appear in sitemap.xml
+  const sitemapUrlSet = new Set(sitemapUrls);
+  for (const [route, pageInfo] of htmlRoutes.entries()) {
+    if (!pageInfo.hasNoindex && !pageInfo.isRedirect) {
+      const expectedUrl = `${siteOrigin}${route}`;
+      if (!sitemapUrlSet.has(expectedUrl)) {
+        errors.push(
+          `Indexable HTML route "${route}" (file: "${pageInfo.file}") is missing from sitemap.xml (expected "${expectedUrl}").`
+        );
+      }
+    }
+  }
+
   return {
     ok: errors.length === 0,
     errors,
