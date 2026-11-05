@@ -63,7 +63,7 @@ export function extractHtmlLinksAndAnchors(htmlContent: string): {
 
 export function checkLinksAndAnchors(
   distDir: string,
-  siteOrigin: string = 'https://kidthales.github.io'
+  siteOrigin: string = 'https://kidthales.com'
 ): LinkCheckResult {
   const errors: string[] = [];
   let linksChecked = 0;

@@ -38,7 +38,7 @@ export function parseMetaRefreshRedirect(content: string): { isRedirect: boolean
 
 export function checkCanonicalAndSitemap(
   distDir: string,
-  siteOrigin: string = 'https://kidthales.github.io'
+  siteOrigin: string = 'https://kidthales.com'
 ): CanonicalSitemapResult {
   const errors: string[] = [];
   let pagesChecked = 0;
@@ -125,11 +125,27 @@ export function checkCanonicalAndSitemap(
                   ? redirectTarget
                   : `${siteOrigin}${redirectTarget.startsWith('/') ? redirectTarget : `/${redirectTarget}`}`;
 
-              if (href !== selfCanonical && href !== targetCanonical) {
+              // Legacy redirects may carry self/target canonical with legacy origin https://kidthales.github.io
+              const legacyOrigin = 'https://kidthales.github.io';
+              const legacySelfCanonical = `${legacyOrigin}${route}`;
+              const legacyTargetCanonical =
+                redirectTarget.startsWith('http://') || redirectTarget.startsWith('https://')
+                  ? redirectTarget
+                  : `${legacyOrigin}${redirectTarget.startsWith('/') ? redirectTarget : `/${redirectTarget}`}`;
+
+              if (
+                href !== selfCanonical &&
+                href !== targetCanonical &&
+                href !== legacySelfCanonical &&
+                href !== legacyTargetCanonical
+              ) {
                 errors.push(
                   `Canonical URL mismatch in redirect "${relPath}": got "${href}", expected self-canonical "${selfCanonical}" or target "${targetCanonical}".`
                 );
-              } else if (href.startsWith(siteOrigin) && !href.endsWith('/')) {
+              } else if (
+                (href.startsWith(siteOrigin) || href.startsWith(legacyOrigin)) &&
+                !href.endsWith('/')
+              ) {
                 errors.push(
                   `Canonical URL "${href}" in "${relPath}" violates trailing-slash requirement.`
                 );

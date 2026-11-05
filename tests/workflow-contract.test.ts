@@ -381,3 +381,22 @@ jobs:
     `Expected job write privilege error, got: ${errors.join(', ')}`
   );
 });
+
+test('workflow-contract: permits allowlisted deploy job write privileges (pages: write, id-token: write)', () => {
+  const yaml = `
+name: Test
+permissions:
+  contents: read
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      - uses: actions/deploy-pages@d6db9016b541285dbb1328905b739665bc837e24
+`;
+  const errors = validateWorkflowContent(yaml, 'test.yml');
+  assert.equal(errors.length, 0);
+});

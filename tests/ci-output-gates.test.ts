@@ -397,20 +397,20 @@ test('end-to-end output gates: checkCanonicalAndSitemap, checkLinksAndAnchors, c
   // Create simulated valid dist
   fs.writeFileSync(
     path.join(tmpDir, 'index.html'),
-    '<!doctype html><html><head><link rel="canonical" href="https://kidthales.github.io/"><title>Home</title></head><body><h1 id="top">Home</h1><a href="/words/">Words</a><a href="#top">Top</a></body></html>'
+    '<!doctype html><html><head><link rel="canonical" href="https://kidthales.com/"><title>Home</title></head><body><h1 id="top">Home</h1><a href="/words/">Words</a><a href="#top">Top</a></body></html>'
   );
 
   fs.writeFileSync(
     path.join(tmpDir, 'words', 'index.html'),
-    '<!doctype html><html><head><link rel="canonical" href="https://kidthales.github.io/words/"><title>Words</title></head><body><a href="/">Home</a></body></html>'
+    '<!doctype html><html><head><link rel="canonical" href="https://kidthales.com/words/"><title>Words</title></head><body><a href="/">Home</a></body></html>'
   );
 
   fs.writeFileSync(
     path.join(tmpDir, 'sitemap.xml'),
     `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://kidthales.github.io/</loc></url>
-  <url><loc>https://kidthales.github.io/words/</loc></url>
+  <url><loc>https://kidthales.com/</loc></url>
+  <url><loc>https://kidthales.com/words/</loc></url>
 </urlset>`
   );
 
@@ -485,7 +485,7 @@ test('canonical & sitemap gate: verifies redirect stubs require noindex, canonic
   // Valid target page
   fs.writeFileSync(
     path.join(worksSpiderexDir, 'index.html'),
-    '<!doctype html><html><head><link rel="canonical" href="https://kidthales.github.io/works/spiderex/"><title>Spiderex</title></head><body><h1>Spiderex</h1></body></html>'
+    '<!doctype html><html><head><link rel="canonical" href="https://kidthales.com/works/spiderex/"><title>Spiderex</title></head><body><h1>Spiderex</h1></body></html>'
   );
 
   // Valid redirect stub
@@ -494,7 +494,7 @@ test('canonical & sitemap gate: verifies redirect stubs require noindex, canonic
     `<!doctype html><html><head>
       <meta http-equiv="refresh" content="0;url=/works/spiderex/" />
       <meta name="robots" content="noindex" />
-      <link rel="canonical" href="https://kidthales.github.io/works/spiderex/" />
+      <link rel="canonical" href="https://kidthales.com/works/spiderex/" />
     </head><body><p>Redirecting...</p></body></html>`
   );
 
@@ -503,7 +503,7 @@ test('canonical & sitemap gate: verifies redirect stubs require noindex, canonic
     path.join(tmpDir, 'sitemap.xml'),
     `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://kidthales.github.io/works/spiderex/</loc></url>
+  <url><loc>https://kidthales.com/works/spiderex/</loc></url>
 </urlset>`
   );
 
@@ -515,7 +515,7 @@ test('canonical & sitemap gate: verifies redirect stubs require noindex, canonic
     path.join(spiderexDir, 'index.html'),
     `<!doctype html><html><head>
       <meta http-equiv="refresh" content="0;url=/works/spiderex/" />
-      <link rel="canonical" href="https://kidthales.github.io/works/spiderex/" />
+      <link rel="canonical" href="https://kidthales.com/works/spiderex/" />
     </head><body><p>Redirecting...</p></body></html>`
   );
   const noNoindexResult = checkCanonicalAndSitemap(tmpDir);
@@ -528,7 +528,7 @@ test('canonical & sitemap gate: verifies redirect stubs require noindex, canonic
     `<!doctype html><html><head>
       <meta http-equiv="refresh" content="0;url=/works/spiderex/" />
       <meta name="robots" content="noindex" />
-      <link rel="canonical" href="https://kidthales.github.io/spiderex/" />
+      <link rel="canonical" href="https://kidthales.com/spiderex/" />
     </head><body><p>Redirecting...</p></body></html>`
   );
   const selfCanonicalResult = checkCanonicalAndSitemap(tmpDir);
@@ -540,7 +540,7 @@ test('canonical & sitemap gate: verifies redirect stubs require noindex, canonic
     `<!doctype html><html><head>
       <meta http-equiv="refresh" content="0;url=/works/spiderex/" />
       <meta name="robots" content="noindex" />
-      <link rel="canonical" href="https://kidthales.github.io/unrelated-page/" />
+      <link rel="canonical" href="https://kidthales.com/unrelated-page/" />
     </head><body><p>Redirecting...</p></body></html>`
   );
   const badCanonicalResult = checkCanonicalAndSitemap(tmpDir);
@@ -553,15 +553,15 @@ test('canonical & sitemap gate: verifies redirect stubs require noindex, canonic
     `<!doctype html><html><head>
       <meta http-equiv="refresh" content="0;url=/works/spiderex/" />
       <meta name="robots" content="noindex" />
-      <link rel="canonical" href="https://kidthales.github.io/works/spiderex/" />
+      <link rel="canonical" href="https://kidthales.com/works/spiderex/" />
     </head><body><p>Redirecting...</p></body></html>`
   );
   fs.writeFileSync(
     path.join(tmpDir, 'sitemap.xml'),
     `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://kidthales.github.io/spiderex/</loc></url>
-  <url><loc>https://kidthales.github.io/works/spiderex/</loc></url>
+  <url><loc>https://kidthales.com/spiderex/</loc></url>
+  <url><loc>https://kidthales.com/works/spiderex/</loc></url>
 </urlset>`
   );
   const sitemapLeakResult = checkCanonicalAndSitemap(tmpDir);
@@ -578,11 +578,11 @@ test('canonical & sitemap gate: rejects sitemap entries that do not correspond t
   // Only root and /works/ exist
   fs.writeFileSync(
     path.join(tmpDir, 'index.html'),
-    '<!doctype html><html><head><link rel="canonical" href="https://kidthales.github.io/"><title>Home</title></head><body>Home</body></html>'
+    '<!doctype html><html><head><link rel="canonical" href="https://kidthales.com/"><title>Home</title></head><body>Home</body></html>'
   );
   fs.writeFileSync(
     path.join(worksDir, 'index.html'),
-    '<!doctype html><html><head><link rel="canonical" href="https://kidthales.github.io/works/"><title>Works</title></head><body>Works</body></html>'
+    '<!doctype html><html><head><link rel="canonical" href="https://kidthales.com/works/"><title>Works</title></head><body>Works</body></html>'
   );
 
   // Sitemap mistakenly includes external work detail URL which has no generated HTML
@@ -590,9 +590,9 @@ test('canonical & sitemap gate: rejects sitemap entries that do not correspond t
     path.join(tmpDir, 'sitemap.xml'),
     `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://kidthales.github.io/</loc></url>
-  <url><loc>https://kidthales.github.io/works/</loc></url>
-  <url><loc>https://kidthales.github.io/works/external-game/</loc></url>
+  <url><loc>https://kidthales.com/</loc></url>
+  <url><loc>https://kidthales.com/works/</loc></url>
+  <url><loc>https://kidthales.com/works/external-game/</loc></url>
 </urlset>`
   );
 
@@ -600,7 +600,7 @@ test('canonical & sitemap gate: rejects sitemap entries that do not correspond t
   assert.equal(result.ok, false);
   assert.ok(
     result.errors.some((e) =>
-      e.includes('Sitemap URL "https://kidthales.github.io/works/external-game/" (route "/works/external-game/") does not correspond to any generated HTML file in dist.')
+      e.includes('Sitemap URL "https://kidthales.com/works/external-game/" (route "/works/external-game/") does not correspond to any generated HTML file in dist.')
     )
   );
 });
@@ -655,11 +655,11 @@ test('canonical & sitemap gate: reverse completeness rejects indexable HTML rout
 
   fs.writeFileSync(
     path.join(tmpDir, 'index.html'),
-    '<!doctype html><html><head><link rel="canonical" href="https://kidthales.github.io/"><title>Home</title></head><body>Home</body></html>'
+    '<!doctype html><html><head><link rel="canonical" href="https://kidthales.com/"><title>Home</title></head><body>Home</body></html>'
   );
   fs.writeFileSync(
     path.join(wordsDir, 'index.html'),
-    '<!doctype html><html><head><link rel="canonical" href="https://kidthales.github.io/words/my-note/"><title>Note</title></head><body>Note</body></html>'
+    '<!doctype html><html><head><link rel="canonical" href="https://kidthales.com/words/my-note/"><title>Note</title></head><body>Note</body></html>'
   );
 
   // sitemap only includes home, omitting /words/my-note/
@@ -667,7 +667,7 @@ test('canonical & sitemap gate: reverse completeness rejects indexable HTML rout
     path.join(tmpDir, 'sitemap.xml'),
     `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://kidthales.github.io/</loc></url>
+  <url><loc>https://kidthales.com/</loc></url>
 </urlset>`
   );
 
