@@ -23,7 +23,7 @@ let pathname = Astro.url.pathname;
 if (!pathname.endsWith('/')) {
   pathname += '/';
 }
-const canonicalURL = new URL(pathname, Astro.site ?? 'https://kidthales.github.io');
+const canonicalURL = new URL(pathname, Astro.site ?? 'https://kidthales.com');
 
 const siteTitle = 'kidthales';
 const fullTitle = Astro.url.pathname === '/' ? title : `${title} | ${siteTitle}`;

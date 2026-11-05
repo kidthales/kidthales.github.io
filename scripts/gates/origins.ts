@@ -25,7 +25,7 @@ export interface OriginCheckResult {
 // Helper to determine if a URL is same-origin or local
 export function isNonSameOrigin(
   urlStr: string,
-  siteOrigin: string = 'https://kidthales.github.io'
+  siteOrigin: string = 'https://kidthales.com'
 ): { isExternal: boolean; origin?: string } {
   const trimmed = urlStr.trim().replace(/^['"]|['"]$/g, '');
 
@@ -76,11 +76,18 @@ export function scanHtmlResources(htmlContent: string): string[] {
     if (val) urls.push(val);
   }
 
-  // 2. <link ... href="...">
-  const linkRegex = /<link\b[^>]*?\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))[^>]*>/gi;
+  // 2. <link ... href="..."> (excluding rel="canonical" which is SEO metadata, not a resource loader)
+  const linkRegex = /<link\b([^>]*)>/gi;
   while ((match = linkRegex.exec(htmlContent)) !== null) {
-    const val = match[1] ?? match[2] ?? match[3];
-    if (val) urls.push(val);
+    const tag = match[1];
+    if (/\brel\s*=\s*(?:"canonical"|'canonical'|canonical\b)/i.test(tag)) {
+      continue;
+    }
+    const hrefMatch = /\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(tag);
+    if (hrefMatch) {
+      const val = hrefMatch[1] ?? hrefMatch[2] ?? hrefMatch[3];
+      if (val) urls.push(val);
+    }
   }
 
   // 3. <img ... src="..." or srcset="...">
@@ -183,7 +190,7 @@ export function scanCssResources(cssContent: string): string[] {
 export function checkOrigins(
   distDir: string,
   manifest: WorksIsland[] = [],
-  siteOrigin: string = 'https://kidthales.github.io'
+  siteOrigin: string = 'https://kidthales.com'
 ): OriginCheckResult {
   const errors: string[] = [];
   let resourcesChecked = 0;

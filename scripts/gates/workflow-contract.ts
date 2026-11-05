@@ -116,8 +116,11 @@ export function validateWorkflowContent(
     } else if (typeof jobPerms === 'object' && jobPerms !== null) {
       for (const [scope, level] of Object.entries(jobPerms)) {
         if (level === 'write') {
-          // Only security-events write in security job is allowlisted
+          // Security job security-events write and deploy job pages/id-token write are allowlisted
           if (jobId === 'security' && scope === 'security-events') {
+            continue;
+          }
+          if (jobId === 'deploy' && (scope === 'pages' || scope === 'id-token')) {
             continue;
           }
           errors.push(

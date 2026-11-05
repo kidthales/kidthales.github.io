@@ -381,3 +381,60 @@ jobs:
     `Expected job write privilege error, got: ${errors.join(', ')}`
   );
 });
+
+test('workflow-contract: permits allowlisted deploy job write privileges (pages: write, id-token: write)', () => {
+  const yaml = `
+name: Test
+permissions:
+  contents: read
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      - uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5
+`;
+  const errors = validateWorkflowContent(yaml, 'test.yml');
+  assert.equal(errors.length, 0);
+});
+
+test('workflow-contract: rejects pages/id-token write on non-deploy jobs and unallowlisted write on deploy job', () => {
+  const nonDeployPagesWrite = `
+name: Test
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+    steps:
+      - run: echo "unauthorized pages write"
+`;
+  const errors1 = validateWorkflowContent(nonDeployPagesWrite, 'test.yml');
+  assert.ok(
+    errors1.some((e) => e.includes("job 'verify' requests elevated write privilege 'pages: write'")),
+    `Expected verify pages: write rejection, got: ${errors1.join(', ')}`
+  );
+
+  const deployContentsWrite = `
+name: Test
+permissions:
+  contents: read
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5
+`;
+  const errors2 = validateWorkflowContent(deployContentsWrite, 'test.yml');
+  assert.ok(
+    errors2.some((e) => e.includes("job 'deploy' requests elevated write privilege 'contents: write'")),
+    `Expected deploy contents: write rejection, got: ${errors2.join(', ')}`
+  );
+});

@@ -3,7 +3,7 @@ import { getAllEntries } from '../lib/entries';
 import { getAllWorks } from '../lib/works';
 
 export const GET: APIRoute = async ({ site }) => {
-  const baseUrl = (site ? site.toString() : 'https://kidthales.github.io').replace(/\/+$/, '');
+  const baseUrl = (site ? site.toString() : 'https://kidthales.com').replace(/\/+$/, '');
 
   const staticUrls = [
     `${baseUrl}/`,
