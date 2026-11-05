@@ -154,6 +154,8 @@ test('origins gate: detects unauthorized third-party resource attributes', () =>
     <html>
       <head>
         <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto">
+        <link rel="canonical" href="https://kidthales.github.io/legacy-canonical/">
+        <link href="https://kidthales.com/reverse-order/" rel="canonical">
       </head>
       <body>
         <img src="https://cdn.example.com/image.png" alt="example">
@@ -533,6 +535,18 @@ test('canonical & sitemap gate: verifies redirect stubs require noindex, canonic
   );
   const selfCanonicalResult = checkCanonicalAndSitemap(tmpDir);
   assert.equal(selfCanonicalResult.ok, true);
+
+  // Permitted scenario: legacy origin canonical on redirect stub (https://kidthales.github.io/...)
+  fs.writeFileSync(
+    path.join(spiderexDir, 'index.html'),
+    `<!doctype html><html><head>
+      <meta http-equiv="refresh" content="0;url=/works/spiderex/" />
+      <meta name="robots" content="noindex" />
+      <link rel="canonical" href="https://kidthales.github.io/works/spiderex/" />
+    </head><body><p>Redirecting...</p></body></html>`
+  );
+  const legacyCanonicalResult = checkCanonicalAndSitemap(tmpDir);
+  assert.equal(legacyCanonicalResult.ok, true);
 
   // Failure scenario 2: redirect stub canonical pointing to unrelated URL
   fs.writeFileSync(
