@@ -9,12 +9,19 @@ export interface LinkCheckResult {
   linksChecked: number;
 }
 
+export interface AriaReference {
+  attribute: string;
+  targetId: string;
+}
+
 export function extractHtmlLinksAndAnchors(htmlContent: string): {
   links: string[];
   anchors: string[];
+  ariaReferences: AriaReference[];
 } {
   const links: string[] = [];
   const anchors: string[] = [];
+  const ariaReferences: AriaReference[] = [];
 
   // 1. Collect all elements with id="..."
   const idRegex = /\bid\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi;
@@ -38,7 +45,20 @@ export function extractHtmlLinksAndAnchors(htmlContent: string): {
     if (href) links.push(href.trim());
   }
 
-  return { links, anchors };
+  // 3. Collect aria-labelledby and aria-describedby references
+  const ariaRegex = /\b(aria-labelledby|aria-describedby)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi;
+  while ((match = ariaRegex.exec(htmlContent)) !== null) {
+    const attr = match[1];
+    const val = match[2] ?? match[3] ?? match[4];
+    if (val) {
+      const ids = val.trim().split(/\s+/).filter(Boolean);
+      for (const targetId of ids) {
+        ariaReferences.push({ attribute: attr, targetId });
+      }
+    }
+  }
+
+  return { links, anchors, ariaReferences };
 }
 
 export function checkLinksAndAnchors(
@@ -97,7 +117,17 @@ export function checkLinksAndAnchors(
         if (relPath.endsWith('.html')) {
           const currentRoute = routeFromHtmlPath(relPath);
           const content = fs.readFileSync(fullPath, 'utf8');
-          const { links } = extractHtmlLinksAndAnchors(content);
+          const { links, ariaReferences } = extractHtmlLinksAndAnchors(content);
+          const currentAnchors = htmlPages.get(currentRoute) || new Set<string>();
+
+          // Validate aria-labelledby and aria-describedby ID targets
+          for (const ref of ariaReferences) {
+            if (!currentAnchors.has(ref.targetId)) {
+              errors.push(
+                `Broken ARIA reference in page "${currentRoute}" (${relPath}): ${ref.attribute} references ID "${ref.targetId}" which does not exist in the document.`
+              );
+            }
+          }
 
           for (const href of links) {
             // Ignore mailto:, tel:, javascript:, etc.

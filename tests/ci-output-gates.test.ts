@@ -633,3 +633,118 @@ test('budgets gate: extractPageAssets and getPageType handle works vs workIsland
   assert.deepEqual(assets2.jsAssets, ['/_astro/spiderex-trainer.789012.js']);
   assert.equal(getPageType('works/spiderex/index.html', assets2.jsAssets.length > 0), 'workIsland');
 });
+
+test('budgets gate: getPageType classifies 404.html as index and words via HTML content without slug substrings', () => {
+  assert.equal(getPageType('404.html'), 'index');
+
+  const essayHtml = '<article class="prose" data-entry-form="essay"><h1>An Analysis</h1></article>';
+  assert.equal(getPageType('words/custom-slug/index.html', false, essayHtml), 'essay');
+
+  const paperHtml = '<article class="prose" data-entry-form="paper"><h1>A Whitepaper</h1></article>';
+  assert.equal(getPageType('words/custom-slug/index.html', false, paperHtml), 'paper');
+
+  const noteHtml = '<article class="prose" data-entry-form="note"><h1>A Note</h1></article>';
+  assert.equal(getPageType('words/custom-slug/index.html', false, noteHtml), 'note');
+});
+
+test('canonical & sitemap gate: reverse completeness rejects indexable HTML route missing from sitemap.xml', (t) => {
+  const tmpDir = path.join(process.cwd(), 'tests', 'fixtures', 'temp-sitemap-reverse-missing');
+  const wordsDir = path.join(tmpDir, 'words', 'my-note');
+  fs.mkdirSync(wordsDir, { recursive: true });
+  t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
+
+  fs.writeFileSync(
+    path.join(tmpDir, 'index.html'),
+    '<!doctype html><html><head><link rel="canonical" href="https://kidthales.github.io/"><title>Home</title></head><body>Home</body></html>'
+  );
+  fs.writeFileSync(
+    path.join(wordsDir, 'index.html'),
+    '<!doctype html><html><head><link rel="canonical" href="https://kidthales.github.io/words/my-note/"><title>Note</title></head><body>Note</body></html>'
+  );
+
+  // sitemap only includes home, omitting /words/my-note/
+  fs.writeFileSync(
+    path.join(tmpDir, 'sitemap.xml'),
+    `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://kidthales.github.io/</loc></url>
+</urlset>`
+  );
+
+  const result = checkCanonicalAndSitemap(tmpDir);
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.errors.some((e) =>
+      e.includes('Indexable HTML route "/words/my-note/"') && e.includes('missing from sitemap.xml')
+    )
+  );
+});
+
+test('links & anchors gate: validates aria-labelledby and aria-describedby ID targets', (t) => {
+  const tmpDir = path.join(process.cwd(), 'tests', 'fixtures', 'temp-aria-links-gate');
+  fs.mkdirSync(tmpDir, { recursive: true });
+  t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
+
+  fs.writeFileSync(
+    path.join(tmpDir, 'index.html'),
+    '<!doctype html><html><body><section aria-labelledby="missing-heading" aria-describedby="missing-desc"><p>Content</p></section></body></html>'
+  );
+
+  const result = checkLinksAndAnchors(tmpDir);
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((e) => e.includes('aria-labelledby') && e.includes('missing-heading')));
+  assert.ok(result.errors.some((e) => e.includes('aria-describedby') && e.includes('missing-desc')));
+});
+
+test('css-lint: checks all 148 CSS named colors, colon splitting, outline suppression, and fixed px font-size', () => {
+  // Test obscure named color (chartreuse, crimson)
+  const obscureNamedCss = '.btn { color: chartreuse; border-color: crimson; }';
+  const colorErrors1 = lintColourLiterals(obscureNamedCss, 'test.css');
+  assert.equal(colorErrors1.length, 2);
+  assert.match(colorErrors1[0], /raw named color "chartreuse"/);
+  assert.match(colorErrors1[1], /raw named color "crimson"/);
+
+  // Single-line declaration colon splitting
+  const singleLineCss = '.box { color: red; background: blue; }';
+  const colorErrors2 = lintColourLiterals(singleLineCss, 'single.css');
+  assert.equal(colorErrors2.length, 2);
+
+  // Focus outline suppression
+  const outlineNoneCss = 'button:focus { outline: none; }';
+  const outlineZeroCss = 'button:focus { outline: 0; }';
+  assert.match(lintColourLiterals(outlineNoneCss, 'outline.css')[0], /focus outline suppression/);
+  assert.match(lintColourLiterals(outlineZeroCss, 'outline.css')[0], /focus outline suppression/);
+
+  // Fixed px font-size
+  const fixedPxCss = 'p { font-size: 16px; }';
+  assert.match(lintColourLiterals(fixedPxCss, 'font.css')[0], /fixed px font-size/);
+});
+
+test('zero-js gate: detects unreferenced .js file in dist when island route is declared', (t) => {
+  const tmpDir = path.join(process.cwd(), 'tests', 'fixtures', 'temp-zero-js-unref');
+  const worksDir = path.join(tmpDir, 'works', 'sim');
+  const astroDir = path.join(tmpDir, '_astro');
+  fs.mkdirSync(worksDir, { recursive: true });
+  fs.mkdirSync(astroDir, { recursive: true });
+  t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
+
+  fs.writeFileSync(
+    path.join(worksDir, 'index.html'),
+    '<!doctype html><html><head><script src="/_astro/used.js"></script></head><body></body></html>'
+  );
+  fs.writeFileSync(path.join(astroDir, 'used.js'), 'console.log("used");');
+  fs.writeFileSync(path.join(astroDir, 'unreferenced.js'), 'console.log("orphan");');
+
+  const manifest: WorksIsland[] = [
+    {
+      route: '/works/sim/',
+      reason: 'Simulation island',
+      js: true,
+      origins: [],
+    },
+  ];
+
+  const result = checkZeroJs(tmpDir, manifest);
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((e) => e.includes('Unreferenced client JavaScript file') && e.includes('unreferenced.js')));
+});

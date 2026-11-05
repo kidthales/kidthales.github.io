@@ -6,22 +6,17 @@
     - Gate 0: Workflow single-source-of-truth contract & exact step allowlist
     - Gate 1: Action commit SHA pin verification & agent file leak audit
     - Gate 2: PowerShell AST parse validation (*.ps1)
-    - Typecheck (astro check)
-    - Static contrast pairs gate (contrast-pairs.ts)
-    - Unit tests (node --test)
-    - Production build (clean-room .astro/ & dist/)
-    - Output structural gates against Production dist/ (zero-js, origins, links, canonical-sitemap)
-    - Fixture build & diagnostics gate (clean-room .astro/ & dist/)
-    - Accessibility gate & reports (axe.ts)
-    - Weight budgets gate (budgets.ts)
-    - Content-integrity gates (css-lint, integrity-lint, errata-guard)
-    - Negative scenarios (N1–N10)
-    - Production dist/ restoration and verification
-    - Verifiable local CI receipt generation (.ci-local/receipt.json)
+    - Gate 3: Typecheck, contrast pairs & unit tests (astro check, contrast-pairs.ts, node --test)
+    - Gate 4: Production build, structural gates & weight budgets
+    - Gate 5: Fixture build, diagnostics, accessibility & fixture budgets
+    - Gate 6: Content lints, errata guard, negative smoke checks & dist restore
+    - Local CI receipt generation (.ci-local/receipt.json via seldon ci receipt)
 .PARAMETER BaseRef
     Base git ref to compare against (defaults to merge-base with origin/next).
 .PARAMETER CI
     Enforces strict fail-closed contract for CI runners: emits GitHub Actions log groups and annotations.
+.PARAMETER Quick
+    Skips E2E negative build smoke checks and skips local CI receipt generation. Forbidden in -CI mode.
 .PARAMETER Gate0Only
     Executes Gate 0 workflow contract verification and exits.
 #>
@@ -29,6 +24,7 @@
 param(
     [string]$BaseRef = "",
     [switch]$CI,
+    [switch]$Quick,
     [switch]$Gate0Only
 )
 
@@ -36,6 +32,44 @@ $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RootDir = Split-Path -Parent $ScriptDir
 $IsCI = $CI.IsPresent -or (-not [string]::IsNullOrWhiteSpace($env:GITHUB_ACTIONS))
+$script:InGroup = $false
+
+$TotalTimer = [System.Diagnostics.Stopwatch]::StartNew()
+
+function Enter-Gate([int]$Gate, [int]$MaxGate, [string]$Title) {
+    $Header = "[Gate $Gate/$MaxGate] $Title"
+    if ($IsCI) {
+        Write-Host "::group::$Header"
+        $script:InGroup = $true
+    } else {
+        Write-Host "`n=== $Header ===" -ForegroundColor Yellow
+    }
+}
+
+function Exit-GatePass([string]$GateKey, [string]$Message, [System.Diagnostics.Stopwatch]$Timer) {
+    if ($GateKey -and $GateResults.Contains($GateKey)) {
+        $GateResults[$GateKey] = "pass"
+    }
+    $elapsed = [math]::Round($Timer.Elapsed.TotalSeconds, 2)
+    Write-Host "  -> [OK] $Message (${elapsed}s)" -ForegroundColor Green
+    if ($IsCI -and $script:InGroup) {
+        Write-Host "::endgroup::"
+        $script:InGroup = $false
+    }
+}
+
+function Write-Fail([string]$Message) {
+    if ($IsCI) {
+        Write-Host "::error::$Message"
+    }
+    Write-Host "  -> [FAIL] $Message" -ForegroundColor Red
+}
+
+# Fail-closed guard for -CI mode: reject -Quick immediately
+if ($IsCI -and $Quick) {
+    Write-Fail "CI mode forbids -Quick flag; the full verification pipeline must execute."
+    exit 1
+}
 
 # Determine merge-base if BaseRef is omitted
 if (-not $BaseRef) {
@@ -47,238 +81,6 @@ if (-not $BaseRef) {
     }
 }
 
-function Write-Group([string]$Name) {
-    if ($IsCI) {
-        Write-Host "::group::$Name"
-    } else {
-        Write-Host "`n=== $Name ===" -ForegroundColor Cyan
-    }
-}
-
-function Write-EndGroup {
-    if ($IsCI) {
-        Write-Host "::endgroup::"
-    }
-}
-
-function Test-Gate0Workflows {
-    param([string]$TargetWorkflowsDir)
-
-    if (-not (Test-Path $TargetWorkflowsDir)) {
-        throw "Workflows directory not found: $TargetWorkflowsDir"
-    }
-
-    $ExactStepAllowlist = @(
-        "verify/Install dependencies",
-        "verify/Install Playwright browsers"
-    )
-
-    $CanonicalCiRuns = @(
-        "./scripts/ci-local.ps1 -CI",
-        "pwsh ./scripts/ci-local.ps1 -CI",
-        "pwsh -File ./scripts/ci-local.ps1 -CI"
-    )
-
-    $wfFiles = @(Get-ChildItem -Path $TargetWorkflowsDir -File | Where-Object { $_.Extension -in @(".yml", ".yaml") })
-    if ($wfFiles.Count -eq 0) {
-        throw "Gate 0 failed: no workflow files (*.yml, *.yaml) found in $TargetWorkflowsDir"
-    }
-
-    $violations = @()
-
-    foreach ($wf in $wfFiles) {
-        $lines = @(Get-Content -Path $wf.FullName)
-        $inJobs = $false
-        $jobsIndent = -1
-        $currentJob = ""
-        $jobIndent = -1
-        $inSteps = $false
-        $stepsIndent = -1
-        $inStepItem = $false
-        $stepPropIndent = -1
-        $currentStepName = ""
-        $currentStepHasRun = $false
-        $currentStepRunLines = @()
-        $inRunBlock = $false
-        $runBlockIndent = -1
-
-        $jobHasSteps = $false
-        $jobRunsCanonicalCi = $false
-
-        for ($i = 0; $i -le $lines.Count; $i++) {
-            $rawLine = if ($i -lt $lines.Count) { $lines[$i] } else { "" }
-            $trimmed = $rawLine.Trim()
-
-            if ($i -lt $lines.Count -and ($trimmed -eq "" -or $trimmed.StartsWith("#"))) {
-                continue
-            }
-
-            $indent = $rawLine.Length - $rawLine.TrimStart().Length
-
-            if ($inRunBlock) {
-                if ($i -lt $lines.Count -and $indent -gt $runBlockIndent) {
-                    $currentStepRunLines += $trimmed
-                    continue
-                } else {
-                    $inRunBlock = $false
-                }
-            }
-
-            $shouldFlushStep = $false
-            if ($inStepItem) {
-                if ($i -eq $lines.Count) {
-                    $shouldFlushStep = $true
-                } elseif ($indent -le $jobIndent) {
-                    $shouldFlushStep = $true
-                } elseif ($indent -le $stepsIndent -and -not $trimmed.StartsWith("-")) {
-                    $shouldFlushStep = $true
-                } elseif ($trimmed.StartsWith("- ") -or $trimmed -eq "-") {
-                    if ($indent -le $stepPropIndent) {
-                        $shouldFlushStep = $true
-                    }
-                }
-            }
-
-            if ($shouldFlushStep) {
-                if ($currentStepHasRun) {
-                    $runText = ($currentStepRunLines -join "`n").Trim()
-                    $pairKey = "$currentJob/$currentStepName"
-                    $isCanonicalCi = $CanonicalCiRuns -contains $runText
-                    $isAllowlisted = $ExactStepAllowlist -contains $pairKey
-
-                    if ($isCanonicalCi) {
-                        $jobRunsCanonicalCi = $true
-                    }
-
-                    if (-not $isCanonicalCi -and -not $isAllowlisted) {
-                        $violations += "$($wf.Name): job '$currentJob' step '$currentStepName' runs script ('$runText') instead of './scripts/ci-local.ps1 -CI' and pair '$pairKey' is not in the Gate 0 exact allowlist."
-                    }
-                }
-                $inStepItem = $false
-                $currentStepName = ""
-                $currentStepHasRun = $false
-                $currentStepRunLines = @()
-            }
-
-            $isEndingJob = $false
-            if ($currentJob -ne "") {
-                if ($i -eq $lines.Count) {
-                    $isEndingJob = $true
-                } elseif ($indent -eq 0 -and $trimmed.EndsWith(":")) {
-                    $isEndingJob = $true
-                } elseif ($jobIndent -ne -1 -and $indent -eq $jobIndent -and -not $trimmed.StartsWith("-") -and $trimmed.EndsWith(":")) {
-                    $isEndingJob = $true
-                }
-            }
-
-            if ($isEndingJob) {
-                if ($currentJob -in @("verify", "test-and-build")) {
-                    if ($jobHasSteps -and -not $jobRunsCanonicalCi) {
-                        $violations += "$($wf.Name): verify job '$currentJob' defines steps but does not invoke './scripts/ci-local.ps1 -CI'."
-                    }
-                }
-            }
-
-            if ($i -eq $lines.Count) {
-                break
-            }
-
-            if ($indent -eq 0 -and $trimmed.EndsWith(":")) {
-                $sectionName = $trimmed.Substring(0, $trimmed.Length - 1).Trim()
-                if ($sectionName -eq "jobs") {
-                    $inJobs = $true
-                    $jobsIndent = 0
-                    $currentJob = ""
-                    $inSteps = $false
-                } else {
-                    $inJobs = $false
-                    $currentJob = ""
-                    $inSteps = $false
-                }
-                continue
-            }
-
-            if (-not $inJobs) {
-                continue
-            }
-
-            if (($jobIndent -eq -1 -or $indent -eq $jobIndent) -and $indent -gt $jobsIndent -and -not $trimmed.StartsWith("-") -and $trimmed.EndsWith(":")) {
-                $jobCandidate = $trimmed.Substring(0, $trimmed.Length - 1).Trim()
-                if ($jobIndent -eq -1) {
-                    $jobIndent = $indent
-                }
-                if ($indent -eq $jobIndent) {
-                    $currentJob = $jobCandidate
-                    $inSteps = $false
-                    $stepsIndent = -1
-                    $jobHasSteps = $false
-                    $jobRunsCanonicalCi = $false
-                    continue
-                }
-            }
-
-            if (-not $currentJob) {
-                continue
-            }
-
-            if ($indent -gt $jobIndent -and $trimmed -eq "steps:") {
-                $inSteps = $true
-                $stepsIndent = $indent
-                $jobHasSteps = $true
-                continue
-            }
-
-            if ($inSteps -and $indent -le $stepsIndent -and -not $trimmed.StartsWith("-")) {
-                $inSteps = $false
-                continue
-            }
-
-            if ($inSteps) {
-                $propText = $trimmed
-                if ($trimmed.StartsWith("- ") -or $trimmed -eq "-") {
-                    $inStepItem = $true
-                    $currentStepName = ""
-                    $currentStepHasRun = $false
-                    $currentStepRunLines = @()
-                    $dashIdx = $rawLine.IndexOf("-")
-                    $propText = $trimmed.Substring(1).Trim()
-                    $stepPropIndent = $dashIdx + 2
-                }
-
-                if ($inStepItem -and $propText -ne "") {
-                    $colonIdx = $propText.IndexOf(":")
-                    if ($colonIdx -gt 0) {
-                        $propKey = $propText.Substring(0, $colonIdx).Trim()
-                        $propVal = $propText.Substring($colonIdx + 1).Trim()
-                        if (($propVal.StartsWith("'") -and $propVal.EndsWith("'")) -or ($propVal.StartsWith('"') -and $propVal.EndsWith('"'))) {
-                            $propVal = $propVal.Substring(1, $propVal.Length - 2)
-                        }
-
-                        if ($propKey -eq "name") {
-                            $currentStepName = $propVal
-                        } elseif ($propKey -eq "run") {
-                            $currentStepHasRun = $true
-                            if ($propVal -eq "|" -or $propVal -eq ">" -or $propVal -eq "|-" -or $propVal -eq ">-" -or $propVal -eq "") {
-                                $inRunBlock = $true
-                                $runBlockIndent = $indent
-                            } else {
-                                $currentStepRunLines += $propVal
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    if ($violations.Count -gt 0) {
-        foreach ($v in $violations) {
-            [Console]::Error.WriteLine("Gate 0 violation: $v")
-        }
-        throw "Gate 0 workflow single-source verification failed ($($violations.Count) violation(s))."
-    }
-}
-
 Push-Location $RootDir
 $prodLogFile = Join-Path ([System.IO.Path]::GetTempPath()) "astro-build-prod-$PID.log"
 $fixtureLogFile = Join-Path ([System.IO.Path]::GetTempPath()) "astro-build-fixture-$PID.log"
@@ -286,7 +88,7 @@ $prodDistBackup = Join-Path ([System.IO.Path]::GetTempPath()) "kidthales-dist-pr
 
 try {
     Write-Host "====================================================" -ForegroundColor Cyan
-    Write-Host " kidthales.github.io CI Orchestrator$(if ($IsCI) { ' [-CI Fail-Closed Mode]' } else { '' })" -ForegroundColor Cyan
+    Write-Host " kidthales.github.io CI Orchestrator$(if ($IsCI) { ' [-CI Fail-Closed Mode]' } elseif ($Quick) { ' [-Quick Mode]' } else { '' })" -ForegroundColor Cyan
     Write-Host " Root: $RootDir" -ForegroundColor Gray
     Write-Host " BaseRef: $BaseRef" -ForegroundColor Gray
     Write-Host "====================================================" -ForegroundColor Cyan
@@ -301,15 +103,20 @@ try {
         "gate6_lints_errata_and_negative"   = "fail"
     }
 
+    $MaxGate = 6
+
     # -------------------------------------------------------------
     # Gate 0: Workflow Single-Source Contract & Step Allowlist
     # -------------------------------------------------------------
-    Write-Group "Gate 0: Workflow Single-Source Contract"
-    $wfDir = Join-Path $RootDir ".github/workflows"
-    Test-Gate0Workflows -TargetWorkflowsDir $wfDir
-    $GateResults["gate0_workflow_contract"] = "pass"
-    Write-Host "  -> All workflows conform to ci-local.ps1 -CI or exact step allowlist." -ForegroundColor Green
-    Write-EndGroup
+    $Gate0Timer = [System.Diagnostics.Stopwatch]::StartNew()
+    Enter-Gate 0 $MaxGate "Workflow Single-Source Contract"
+    Write-Host "Running: node --experimental-strip-types scripts/gates/workflow-contract.ts .github/workflows..." -ForegroundColor Yellow
+    & node --experimental-strip-types scripts/gates/workflow-contract.ts .github/workflows
+    if ($LASTEXITCODE -ne 0) {
+        Write-Fail "Workflow contract verification failed."
+        throw "Gate 0 Failed: Workflow contract verification failed."
+    }
+    Exit-GatePass "gate0_workflow_contract" "All workflows conform to workflow-contract.ts AST invariants" $Gate0Timer
 
     if ($Gate0Only) {
         exit 0
@@ -318,7 +125,9 @@ try {
     # -------------------------------------------------------------
     # Gate 1: Action Commit SHA Pinning & Agent File Leak Audit
     # -------------------------------------------------------------
-    Write-Group "Gate 1: Action Commit SHA Pinning & Agent File Leak Audit"
+    $Gate1Timer = [System.Diagnostics.Stopwatch]::StartNew()
+    Enter-Gate 1 $MaxGate "Action Commit SHA Pinning & Agent File Leak Audit"
+    $wfDir = Join-Path $RootDir ".github/workflows"
     if (Test-Path $wfDir) {
         $wfFiles = Get-ChildItem -Path $wfDir -File | Where-Object { $_.Extension -in @(".yml", ".yaml") }
         $unpinned = @()
@@ -337,8 +146,8 @@ try {
             }
         }
         if ($unpinned.Count -gt 0) {
-            Write-EndGroup
-            throw "Gate 1 Failed: Unpinned action(s) detected (must pin to 40-char commit SHA):`n$($unpinned -join "`n")"
+            Write-Fail "Unpinned action(s) detected (must pin to 40-char commit SHA):`n$($unpinned -join "`n")"
+            throw "Gate 1 Failed: Unpinned action(s) detected."
         }
     }
 
@@ -349,17 +158,16 @@ try {
     $UntrackedLeaks = @($UntrackedFiles | Where-Object { $_ -match $AgentFilePattern })
 
     if ($TrackedLeaks.Count -gt 0 -or $UntrackedLeaks.Count -gt 0) {
-        Write-EndGroup
+        Write-Fail "Agent or scratch file leak detected."
         throw "Gate 1 Failed: Agent or scratch file leak detected."
     }
-    $GateResults["gate1_action_pins_and_leaks"] = "pass"
-    Write-Host "  -> Action commit SHA pins and agent leak audits passed." -ForegroundColor Green
-    Write-EndGroup
+    Exit-GatePass "gate1_action_pins_and_leaks" "Action commit SHA pins and agent leak audits passed" $Gate1Timer
 
     # -------------------------------------------------------------
     # Gate 2: PowerShell AST Parse Validation (*.ps1)
     # -------------------------------------------------------------
-    Write-Group "Gate 2: PowerShell AST Parse Validation (*.ps1)"
+    $Gate2Timer = [System.Diagnostics.Stopwatch]::StartNew()
+    Enter-Gate 2 $MaxGate "PowerShell AST Parse Validation (*.ps1)"
     $Ps1Files = Get-ChildItem -Path $RootDir -Recurse -Filter "*.ps1" | Where-Object { $_.FullName -notmatch '[\\/](\.git|node_modules)[\\/]' }
     $ParseErrors = 0
     foreach ($ps in $Ps1Files) {
@@ -367,63 +175,65 @@ try {
         $errors = $null
         [System.Management.Automation.Language.Parser]::ParseFile($ps.FullName, [ref]$tokens, [ref]$errors) | Out-Null
         if ($errors.Count -gt 0) {
-            Write-Host "  -> Parse error in $($ps.FullName): $($errors | Out-String)" -ForegroundColor Red
+            Write-Fail "Parse error in $($ps.FullName): $($errors | Out-String)"
             $ParseErrors++
         }
     }
     if ($ParseErrors -gt 0) {
-        Write-EndGroup
         throw "Gate 2 Failed: $ParseErrors PowerShell script(s) failed AST parse validation."
     }
-    $GateResults["gate2_pwsh_ast"] = "pass"
-    Write-Host "  -> PowerShell AST validation passed ($($Ps1Files.Count) script(s))." -ForegroundColor Green
-    Write-EndGroup
+    Exit-GatePass "gate2_pwsh_ast" "PowerShell AST validation passed ($($Ps1Files.Count) script(s))" $Gate2Timer
 
     # -------------------------------------------------------------
-    # Step 3: Typecheck (astro check)
+    # Gate 3: Typecheck, Static Contrast Pairs & Unit Tests
     # -------------------------------------------------------------
-    Write-Group "Typecheck (astro check)"
+    $Gate3Timer = [System.Diagnostics.Stopwatch]::StartNew()
+    Enter-Gate 3 $MaxGate "Typecheck, Static Contrast Pairs & Unit Tests"
     if (Test-Path (Join-Path $RootDir ".astro")) { Remove-Item -Recurse -Force (Join-Path $RootDir ".astro") }
     if (Test-Path (Join-Path $RootDir "node_modules/.astro")) { Remove-Item -Recurse -Force (Join-Path $RootDir "node_modules/.astro") }
+
     Write-Host "Running: npm run check..." -ForegroundColor Yellow
     & npm run check
     if ($LASTEXITCODE -ne 0) {
-        Write-EndGroup
+        Write-Fail "astro check returned exit code $LASTEXITCODE"
         throw "CI Step Failed: astro check returned exit code $LASTEXITCODE"
     }
-    Write-EndGroup
 
-    # -------------------------------------------------------------
-    # Step 4: Static Contrast Pairs Gate
-    # -------------------------------------------------------------
-    Write-Group "Static Contrast Pairs Gate (scripts/gates/contrast-pairs.ts)"
     Write-Host "Running: node --experimental-strip-types scripts/gates/contrast-pairs.ts..." -ForegroundColor Yellow
     & node --experimental-strip-types scripts/gates/contrast-pairs.ts
     if ($LASTEXITCODE -ne 0) {
-        Write-EndGroup
+        Write-Fail "Contrast pairs gate returned exit code $LASTEXITCODE"
         throw "CI Step Failed: Contrast pairs gate returned exit code $LASTEXITCODE"
     }
-    Write-EndGroup
 
-    # -------------------------------------------------------------
-    # Step 5: Unit Tests (node --test)
-    # -------------------------------------------------------------
-    Write-Group "Unit Tests (node --test)"
     Write-Host "Running: npm test..." -ForegroundColor Yellow
+    $statusBeforeTest = (& git -C $RootDir status --porcelain 2>$null | Out-String).Trim()
     & npm test
     if ($LASTEXITCODE -ne 0) {
-        Write-EndGroup
+        Write-Fail "npm test returned exit code $LASTEXITCODE"
         throw "CI Step Failed: npm test returned exit code $LASTEXITCODE"
     }
-    Write-EndGroup
-    $GateResults["gate3_typecheck_contrast_and_unit"] = "pass"
+
+    # Enforce post-npm test working-tree cleanliness
+    $statusAfterTest = (& git -C $RootDir status --porcelain 2>$null | Out-String).Trim()
+    if ($IsCI -and (-not [string]::IsNullOrWhiteSpace($statusAfterTest))) {
+        Write-Fail "Working tree must be completely clean in -CI mode, but detected changes:`n$statusAfterTest"
+        throw "CI Step Failed: Working tree dirtied in -CI mode."
+    }
+    if ($statusBeforeTest -ne $statusAfterTest) {
+        Write-Fail "Working tree was modified by npm test:`n$statusAfterTest"
+        throw "CI Step Failed: Working tree was dirtied by npm test."
+    }
+
+    Exit-GatePass "gate3_typecheck_contrast_and_unit" "Typecheck, contrast pairs, and unit tests passed with clean working tree" $Gate3Timer
 
     # -------------------------------------------------------------
-    # Step 6: Production Build (clean-room .astro/ & dist/)
+    # Gate 4: Production Build & Structural Output Gates
     # -------------------------------------------------------------
-    Write-Group "Production Build (clean-room astro build)"
+    $Gate4Timer = [System.Diagnostics.Stopwatch]::StartNew()
+    Enter-Gate 4 $MaxGate "Production Build & Structural Output Gates"
     if ($env:SITE_FIXTURES) {
-        Write-EndGroup
+        Write-Fail "Production build cannot run with SITE_FIXTURES set."
         throw "CI Step Failed: Production build cannot run with SITE_FIXTURES set."
     }
     if (Test-Path (Join-Path $RootDir ".astro")) { Remove-Item -Recurse -Force (Join-Path $RootDir ".astro") }
@@ -436,64 +246,55 @@ try {
     Write-Host $prodOutput
     Set-Content -Path $prodLogFile -Value $prodOutput -Encoding UTF8
     if ($prodExitCode -ne 0) {
-        Write-EndGroup
+        Write-Fail "astro build returned exit code $prodExitCode"
         throw "CI Step Failed: astro build returned exit code $prodExitCode"
     }
-    Write-EndGroup
 
-    # -------------------------------------------------------------
-    # Step 7: Structural Output Gates (against Production dist/)
-    # -------------------------------------------------------------
-    Write-Group "Zero-JS Gate (scripts/gates/zero-js.ts)"
     Write-Host "Running: node --experimental-strip-types scripts/gates/zero-js.ts dist..." -ForegroundColor Yellow
     & node --experimental-strip-types scripts/gates/zero-js.ts dist
     if ($LASTEXITCODE -ne 0) {
-        Write-EndGroup
+        Write-Fail "Zero-JS gate returned exit code $LASTEXITCODE"
         throw "CI Step Failed: Zero-JS gate returned exit code $LASTEXITCODE"
     }
-    Write-EndGroup
 
-    Write-Group "Origin Gate (scripts/gates/origins.ts)"
     Write-Host "Running: node --experimental-strip-types scripts/gates/origins.ts dist..." -ForegroundColor Yellow
     & node --experimental-strip-types scripts/gates/origins.ts dist
     if ($LASTEXITCODE -ne 0) {
-        Write-EndGroup
+        Write-Fail "Origin gate returned exit code $LASTEXITCODE"
         throw "CI Step Failed: Origin gate returned exit code $LASTEXITCODE"
     }
-    Write-EndGroup
 
-    Write-Group "Internal Links & Anchors Gate (scripts/gates/links.ts)"
     Write-Host "Running: node --experimental-strip-types scripts/gates/links.ts dist..." -ForegroundColor Yellow
     & node --experimental-strip-types scripts/gates/links.ts dist
     if ($LASTEXITCODE -ne 0) {
-        Write-EndGroup
+        Write-Fail "Internal Links & Anchors gate returned exit code $LASTEXITCODE"
         throw "CI Step Failed: Internal Links & Anchors gate returned exit code $LASTEXITCODE"
     }
-    Write-EndGroup
 
-    Write-Group "Canonical & Sitemap Gate (scripts/gates/canonical-sitemap.ts)"
     Write-Host "Running: node --experimental-strip-types scripts/gates/canonical-sitemap.ts dist..." -ForegroundColor Yellow
     & node --experimental-strip-types scripts/gates/canonical-sitemap.ts dist
     if ($LASTEXITCODE -ne 0) {
-        Write-EndGroup
+        Write-Fail "Canonical & Sitemap gate returned exit code $LASTEXITCODE"
         throw "CI Step Failed: Canonical & Sitemap gate returned exit code $LASTEXITCODE"
     }
-    Write-EndGroup
 
-    # -------------------------------------------------------------
-    # Step 8: Stage Production dist/ to Temporary Staging Directory
-    # -------------------------------------------------------------
-    Write-Group "Stage Production Build Output"
+    Write-Host "Running: node --experimental-strip-types scripts/gates/budgets.ts dist budgets.json (Production dist)..." -ForegroundColor Yellow
+    & node --experimental-strip-types scripts/gates/budgets.ts dist budgets.json
+    if ($LASTEXITCODE -ne 0) {
+        Write-Fail "Production Weight Budgets gate returned exit code $LASTEXITCODE"
+        throw "CI Step Failed: Production Weight Budgets gate returned exit code $LASTEXITCODE"
+    }
+
+    # Stage Production dist/ to Temporary Cache
     if (Test-Path $prodDistBackup) { Remove-Item -Recurse -Force $prodDistBackup }
     Copy-Item -Recurse -Force (Join-Path $RootDir "dist") $prodDistBackup
-    Write-Host "  -> Production dist/ staged to temporary cache." -ForegroundColor Green
-    Write-EndGroup
-    $GateResults["gate4_prod_build_and_structural"] = "pass"
+    Exit-GatePass "gate4_prod_build_and_structural" "Production build, structural gates, and production weight budgets passed" $Gate4Timer
 
     # -------------------------------------------------------------
-    # Step 9: Fixture Build (clean-room .astro/ & dist/)
+    # Gate 5: Fixture Build, Accessibility Audit & Budgets
     # -------------------------------------------------------------
-    Write-Group "Fixture Build (clean-room SITE_FIXTURES=1)"
+    $Gate5Timer = [System.Diagnostics.Stopwatch]::StartNew()
+    Enter-Gate 5 $MaxGate "Fixture Build, Accessibility Audit & Budgets"
     if (Test-Path (Join-Path $RootDir ".astro")) { Remove-Item -Recurse -Force (Join-Path $RootDir ".astro") }
     if (Test-Path (Join-Path $RootDir "node_modules/.astro")) { Remove-Item -Recurse -Force (Join-Path $RootDir "node_modules/.astro") }
     if (Test-Path (Join-Path $RootDir "dist")) { Remove-Item -Recurse -Force (Join-Path $RootDir "dist") }
@@ -508,6 +309,7 @@ try {
         Write-Host $fixtureOutput
         Set-Content -Path $fixtureLogFile -Value $fixtureOutput -Encoding UTF8
         if ($fixtureExitCode -ne 0) {
+            Write-Fail "Fixture build returned exit code $fixtureExitCode"
             throw "CI Step Failed: Fixture build returned exit code $fixtureExitCode"
         }
     } finally {
@@ -515,156 +317,122 @@ try {
         $env:WORDS_FIXTURE_PATH = ""
         $env:WORKS_FIXTURE_PATH = ""
     }
-    Write-EndGroup
 
-    # -------------------------------------------------------------
-    # Step 10: Diagnostics Gate (Production + Fixture Logs)
-    # -------------------------------------------------------------
-    Write-Group "Diagnostics Gate (scripts/gates/diagnostics.ts)"
     Write-Host "Running: node --experimental-strip-types scripts/gates/diagnostics.ts..." -ForegroundColor Yellow
     & node --experimental-strip-types scripts/gates/diagnostics.ts --log $prodLogFile --log $fixtureLogFile
     if ($LASTEXITCODE -ne 0) {
-        Write-EndGroup
+        Write-Fail "Diagnostics gate returned exit code $LASTEXITCODE"
         throw "CI Step Failed: Diagnostics gate returned exit code $LASTEXITCODE"
     }
-    Write-EndGroup
 
-    # -------------------------------------------------------------
-    # Step 11: Accessibility Gate (WCAG 2.2 A/AA axe audit on fixtures)
-    # -------------------------------------------------------------
-    Write-Group "Accessibility Gate (scripts/gates/axe.ts)"
-    Write-Host "Running: node --experimental-strip-types scripts/gates/axe.ts dist..." -ForegroundColor Yellow
+    Write-Host "Running: node --experimental-strip-types scripts/gates/axe.ts dist (single-pass accessibility & reports)..." -ForegroundColor Yellow
     & node --experimental-strip-types scripts/gates/axe.ts dist
     if ($LASTEXITCODE -ne 0) {
-        Write-EndGroup
+        Write-Fail "Accessibility gate returned exit code $LASTEXITCODE"
         throw "CI Step Failed: Accessibility gate returned exit code $LASTEXITCODE"
     }
-    Write-EndGroup
 
-    Write-Group "Accessibility & Performance Reports (scripts/gates/axe.ts --report)"
-    Write-Host "Running: node --experimental-strip-types scripts/gates/axe.ts --report dist..." -ForegroundColor Yellow
-    & node --experimental-strip-types scripts/gates/axe.ts --report dist
-    Write-EndGroup
-
-    # -------------------------------------------------------------
-    # Step 12: Weight Budgets Gate (against fixture dist/)
-    # -------------------------------------------------------------
-    Write-Group "Weight Budgets Gate (scripts/gates/budgets.ts)"
-    Write-Host "Running: node --experimental-strip-types scripts/gates/budgets.ts dist budgets.json..." -ForegroundColor Yellow
+    Write-Host "Running: node --experimental-strip-types scripts/gates/budgets.ts dist budgets.json (Fixture dist)..." -ForegroundColor Yellow
     & node --experimental-strip-types scripts/gates/budgets.ts dist budgets.json
     if ($LASTEXITCODE -ne 0) {
-        Write-EndGroup
-        throw "CI Step Failed: Weight Budgets gate returned exit code $LASTEXITCODE"
+        Write-Fail "Fixture Weight Budgets gate returned exit code $LASTEXITCODE"
+        throw "CI Step Failed: Fixture Weight Budgets gate returned exit code $LASTEXITCODE"
     }
-    Write-EndGroup
-    $GateResults["gate5_fixture_axe_and_budgets"] = "pass"
+    Exit-GatePass "gate5_fixture_axe_and_budgets" "Fixture build, diagnostics, single-pass axe audit, and fixture weight budgets passed" $Gate5Timer
 
     # -------------------------------------------------------------
-    # Step 13: CSS & Integrity Lints
+    # Gate 6: Lints, Errata Guard, Negative Scenarios & Restore
     # -------------------------------------------------------------
-    Write-Group "CSS Lints (scripts/gates/css-lint.ts)"
+    $Gate6Timer = [System.Diagnostics.Stopwatch]::StartNew()
+    Enter-Gate 6 $MaxGate "Lints, Errata Guard, Negative Scenarios & Restore"
+
     Write-Host "Running: node --experimental-strip-types scripts/gates/css-lint.ts src/styles..." -ForegroundColor Yellow
     & node --experimental-strip-types scripts/gates/css-lint.ts src/styles
     if ($LASTEXITCODE -ne 0) {
-        Write-EndGroup
+        Write-Fail "CSS Lints gate returned exit code $LASTEXITCODE"
         throw "CI Step Failed: CSS Lints gate returned exit code $LASTEXITCODE"
     }
-    Write-EndGroup
 
-    Write-Group "Integrity Lints (scripts/gates/integrity-lint.ts)"
     Write-Host "Running: node --experimental-strip-types scripts/gates/integrity-lint.ts ...." -ForegroundColor Yellow
     & node --experimental-strip-types scripts/gates/integrity-lint.ts .
     if ($LASTEXITCODE -ne 0) {
-        Write-EndGroup
+        Write-Fail "Integrity Lints gate returned exit code $LASTEXITCODE"
         throw "CI Step Failed: Integrity Lints gate returned exit code $LASTEXITCODE"
     }
-    Write-EndGroup
 
-    # -------------------------------------------------------------
-    # Step 14: Errata Guard Gate
-    # -------------------------------------------------------------
-    Write-Group "Errata Guard Gate (scripts/gates/errata-guard.ts)"
     Write-Host "Running: node --experimental-strip-types scripts/gates/errata-guard.ts --base-ref $BaseRef..." -ForegroundColor Yellow
     & node --experimental-strip-types scripts/gates/errata-guard.ts --base-ref $BaseRef
     if ($LASTEXITCODE -ne 0) {
-        Write-EndGroup
+        Write-Fail "errata-guard returned exit code $LASTEXITCODE"
         throw "CI Step Failed: errata-guard returned exit code $LASTEXITCODE"
     }
-    Write-EndGroup
 
-    # -------------------------------------------------------------
-    # Step 15: Negative Scenarios Gate (invalid fixtures N1–N10)
-    # -------------------------------------------------------------
-    Write-Group "Negative Scenarios Gate (invalid fixtures)"
-    $scenarios = @(
-        @{ Id = "N1"; Dir = "n1-essay-missing-description"; Pattern = "description.*Required" },
-        @{ Id = "N2"; Dir = "n2-dangling-superseded-by"; Pattern = "Dangling reference.*non-existent-target" },
-        @{ Id = "N3"; Dir = "n3-wrong-kind"; Pattern = "kind.*Invalid option" },
-        @{ Id = "N4"; Dir = "n4-published-without-published-on"; Pattern = "Published entries require published_on" },
-        @{ Id = "N5"; Dir = "n5-reserved-slug"; Pattern = "Reserved slug error" },
-        @{ Id = "N6"; Dir = "n6-unknown-form"; Pattern = "Did not match union" },
-        @{ Id = "N7"; Dir = "n7-superseded-by-draft"; Pattern = "target is a draft" },
-        @{ Id = "N8"; Dir = "n8-supersede-cycle"; Pattern = "Supersede cycle detected" },
-        @{ Id = "N9"; Dir = "n9-bad-slug-grammar"; Pattern = "Invalid slug grammar error" },
-        @{ Id = "N10"; Dir = "n10-retired-without-note"; Pattern = "Retired works require retirement_note"; EnvVar = "WORKS_FIXTURE_PATH" }
-    )
+    # 2 representative E2E negative build smoke checks (1 words [N1], 1 works [N10], skipped under -Quick)
+    if ($Quick) {
+        Write-Host "  -> Skipping E2E negative build smoke checks under -Quick mode." -ForegroundColor Yellow
+    } else {
+        $scenarios = @(
+            @{ Id = "N1"; Dir = "n1-essay-missing-description"; Pattern = "description"; EnvVar = "WORDS_FIXTURE_PATH" },
+            @{ Id = "N10"; Dir = "n10-retired-without-note"; Pattern = "Retired works require retirement_note"; EnvVar = "WORKS_FIXTURE_PATH" }
+        )
 
-    foreach ($sc in $scenarios) {
-        Write-Host "Testing negative scenario $($sc.Id) ($($sc.Dir))..." -ForegroundColor Yellow
-        if (Test-Path (Join-Path $RootDir ".astro")) { Remove-Item -Recurse -Force (Join-Path $RootDir ".astro") }
-        if (Test-Path (Join-Path $RootDir "node_modules/.astro")) { Remove-Item -Recurse -Force (Join-Path $RootDir "node_modules/.astro") }
-        $env:SITE_FIXTURES = "1"
-        $env:WORDS_FIXTURE_PATH = ""
-        $env:WORKS_FIXTURE_PATH = ""
-        if ($sc.EnvVar) {
-            Set-Item -Path "env:$($sc.EnvVar)" -Value "tests/fixtures/invalid/$($sc.Dir)"
-        } else {
-            $env:WORDS_FIXTURE_PATH = "tests/fixtures/invalid/$($sc.Dir)"
-        }
-        try {
-            $output = & npx astro build 2>&1 | Out-String
-            if ($LASTEXITCODE -eq 0) {
-                throw "Negative scenario $($sc.Id) unexpectedly passed (expected failure matching '$($sc.Pattern)')"
-            }
-            if ($output -notmatch $sc.Pattern) {
-                throw "Negative scenario $($sc.Id) failed with unexpected error. Expected match for '$($sc.Pattern)'. Output:`n$output"
-            }
-            Write-Host "  Scenario $($sc.Id) failed as expected matching pattern '$($sc.Pattern)'" -ForegroundColor Green
-        } finally {
-            $env:SITE_FIXTURES = ""
+        foreach ($sc in $scenarios) {
+            Write-Host "Testing E2E negative scenario $($sc.Id) ($($sc.Dir))..." -ForegroundColor Yellow
+            if (Test-Path (Join-Path $RootDir ".astro")) { Remove-Item -Recurse -Force (Join-Path $RootDir ".astro") }
+            if (Test-Path (Join-Path $RootDir "node_modules/.astro")) { Remove-Item -Recurse -Force (Join-Path $RootDir "node_modules/.astro") }
+            $env:SITE_FIXTURES = "1"
             $env:WORDS_FIXTURE_PATH = ""
             $env:WORKS_FIXTURE_PATH = ""
             if ($sc.EnvVar) {
-                Set-Item -Path "env:$($sc.EnvVar)" -Value ""
+                Set-Item -Path "env:$($sc.EnvVar)" -Value "tests/fixtures/invalid/$($sc.Dir)"
+            } else {
+                $env:WORDS_FIXTURE_PATH = "tests/fixtures/invalid/$($sc.Dir)"
             }
-            $global:LASTEXITCODE = 0
+            try {
+                $output = & npx astro build 2>&1 | Out-String
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Fail "Negative scenario $($sc.Id) unexpectedly passed"
+                    throw "Negative scenario $($sc.Id) unexpectedly passed (expected failure matching '$($sc.Pattern)')"
+                }
+                if ($output -notmatch $sc.Pattern) {
+                    Write-Fail "Negative scenario $($sc.Id) failed with unexpected output"
+                    throw "Negative scenario $($sc.Id) failed with unexpected error. Expected match for '$($sc.Pattern)'. Output:`n$output"
+                }
+                Write-Host "  Scenario $($sc.Id) failed as expected matching pattern '$($sc.Pattern)'" -ForegroundColor Green
+            } finally {
+                $env:SITE_FIXTURES = ""
+                $env:WORDS_FIXTURE_PATH = ""
+                $env:WORKS_FIXTURE_PATH = ""
+                if ($sc.EnvVar) {
+                    Set-Item -Path "env:$($sc.EnvVar)" -Value ""
+                }
+                $global:LASTEXITCODE = 0
+            }
         }
     }
-    Write-EndGroup
 
-    # -------------------------------------------------------------
-    # Step 16: Restore Production Build Output
-    # -------------------------------------------------------------
-    Write-Group "Restore Production Build Output"
+    # Restore Production Build Output
+    Write-Host "Restoring Production Build Output..." -ForegroundColor Yellow
     if (Test-Path (Join-Path $RootDir "dist")) { Remove-Item -Recurse -Force (Join-Path $RootDir "dist") }
     Copy-Item -Recurse -Force $prodDistBackup (Join-Path $RootDir "dist")
     if (-not (Test-Path (Join-Path $RootDir "dist/index.html"))) {
-        Write-EndGroup
+        Write-Fail "Production dist/index.html does not exist after restore."
         throw "CI Step Failed: Production dist/index.html does not exist after restore."
     }
-    Write-Host "  -> Production dist/ successfully restored and verified (dist/index.html exists)." -ForegroundColor Green
-    Write-EndGroup
-    $GateResults["gate6_lints_errata_and_negative"] = "pass"
+    Exit-GatePass "gate6_lints_errata_and_negative" "Lints, errata guard, negative build smoke checks, and prod dist restore passed" $Gate6Timer
 
+    $totalElapsed = [math]::Round($TotalTimer.Elapsed.TotalSeconds, 2)
     Write-Host "`n====================================================" -ForegroundColor Green
-    Write-Host " All CI Gates PASSED" -ForegroundColor Green
+    Write-Host " All CI Gates PASSED in ${totalElapsed}s" -ForegroundColor Green
     Write-Host "====================================================" -ForegroundColor Cyan
 
     # -------------------------------------------------------------
-    # Step 17: Local CI Receipt Generation (.ci-local/receipt.json)
+    # Local CI Receipt Generation (.ci-local/receipt.json)
     # -------------------------------------------------------------
     if ($IsCI) {
         Write-Host "`n  -> Skipping local CI receipt generation under -CI mode." -ForegroundColor Gray
+    } elseif ($Quick) {
+        Write-Host "`n  -> Skipping local CI receipt generation under -Quick mode." -ForegroundColor Gray
     } else {
         $SeldonBin = $null
         if ($env:SELDON_BIN -and $env:SELDON_BIN -ne "none" -and (Test-Path $env:SELDON_BIN)) {

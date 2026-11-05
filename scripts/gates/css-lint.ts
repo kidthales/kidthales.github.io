@@ -16,7 +16,44 @@ export interface CssLintResult {
  */
 const HEX_COLOR_REGEX = /#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b/i;
 const FUNCTIONAL_COLOR_REGEX = /\b(?:rgb|rgba|hsl|hsla|hwb|lab|lch|oklab|oklch)\s*\(/i;
-const NAMED_COLOR_REGEX = /\b(?:black|white|red|green|blue|yellow|orange|purple|cyan|magenta|pink|brown|gray|grey)\b/i;
+
+/**
+ * Complete set of all 148 standard CSS named colors.
+ */
+export const CSS_NAMED_COLORS_LIST = [
+  'aliceblue', 'antiquewhite', 'aqua', 'aquamarine', 'azure',
+  'beige', 'bisque', 'black', 'blanchedalmond', 'blue',
+  'blueviolet', 'brown', 'burlywood', 'cadetblue', 'chartreuse',
+  'chocolate', 'coral', 'cornflowerblue', 'cornsilk', 'crimson',
+  'cyan', 'darkblue', 'darkcyan', 'darkgoldenrod', 'darkgray',
+  'darkgreen', 'darkgrey', 'darkkhaki', 'darkmagenta', 'darkolivegreen',
+  'darkorange', 'darkorchid', 'darkred', 'darksalmon', 'darkseagreen',
+  'darkslateblue', 'darkslategray', 'darkslategrey', 'darkturquoise', 'darkviolet',
+  'deeppink', 'deepskyblue', 'dimgray', 'dimgrey', 'dodgerblue',
+  'firebrick', 'floralwhite', 'forestgreen', 'fuchsia', 'gainsboro',
+  'ghostwhite', 'gold', 'goldenrod', 'gray', 'green',
+  'greenyellow', 'grey', 'honeydew', 'hotpink', 'indianred',
+  'indigo', 'ivory', 'khaki', 'lavender', 'lavenderblush',
+  'lawngreen', 'lemonchiffon', 'lightblue', 'lightcoral', 'lightcyan',
+  'lightgoldenrodyellow', 'lightgray', 'lightgreen', 'lightgrey', 'lightpink',
+  'lightsalmon', 'lightseagreen', 'lightskyblue', 'lightslategray', 'lightslategrey',
+  'lightsteelblue', 'lightyellow', 'lime', 'limegreen', 'linen',
+  'magenta', 'maroon', 'mediumaquamarine', 'mediumblue', 'mediumorchid',
+  'mediumpurple', 'mediumseagreen', 'mediumslateblue', 'mediumspringgreen', 'mediumturquoise',
+  'mediumvioletred', 'midnightblue', 'mintcream', 'mistyrose', 'moccasin',
+  'navajowhite', 'navy', 'oldlace', 'olive', 'olivedrab',
+  'orange', 'orangered', 'orchid', 'palegoldenrod', 'palegreen',
+  'paleturquoise', 'palevioletred', 'papayawhip', 'peachpuff', 'peru',
+  'pink', 'plum', 'powderblue', 'purple', 'rebeccapurple',
+  'red', 'rosybrown', 'royalblue', 'saddlebrown', 'salmon',
+  'sandybrown', 'seagreen', 'seashell', 'sienna', 'silver',
+  'skyblue', 'slateblue', 'slategray', 'slategrey', 'snow',
+  'springgreen', 'steelblue', 'tan', 'teal', 'thistle',
+  'tomato', 'turquoise', 'violet', 'wheat', 'white',
+  'whitesmoke', 'yellow', 'yellowgreen'
+] as const;
+
+const NAMED_COLOR_REGEX = new RegExp('\\b(?:' + CSS_NAMED_COLORS_LIST.join('|') + ')\\b', 'i');
 
 /**
  * Strips comments from CSS string
@@ -33,32 +70,76 @@ function stripNonColorProperties(css: string): string {
   return css.replace(/\b(?:font-family|font)\s*:[^;]+;/gi, '');
 }
 
+/**
+ * Strips selector preambles before '{' and closing braces '}' so only declaration key-value pairs are inspected,
+ * while preserving exact line numbers via preserved newlines.
+ */
+function extractDeclarations(css: string): string {
+  if (css.includes('{')) {
+    return css
+      .replace(/(?:^|[;}])\s*([^{}]+)\{/g, (m) => {
+        const newlines = '\n'.repeat(m.split('\n').length - 1);
+        return ';' + newlines;
+      })
+      .replace(/\}/g, ';\n');
+  }
+  return css;
+}
+
 export function lintColourLiterals(cssContent: string, fileName: string): string[] {
   const errors: string[] = [];
   const clean = stripNonColorProperties(stripCssComments(cssContent));
-  const lines = clean.split('\n');
+  const declsOnly = extractDeclarations(clean);
+  const lines = declsOnly.split('\n');
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line) continue;
+    const rawLine = lines[i].trim();
+    if (!rawLine) continue;
 
-    // Check hex
-    const hexMatch = HEX_COLOR_REGEX.exec(line);
-    if (hexMatch) {
-      errors.push(`${fileName}:${i + 1} contains raw hex color literal "${hexMatch[0]}". Must use picotol tokens.`);
-    }
+    // Handle single-line declarations by splitting on ';'
+    const decls = rawLine.split(';');
+    for (const decl of decls) {
+      const trimmedDecl = decl.trim();
+      if (!trimmedDecl) continue;
+      const colonIdx = trimmedDecl.indexOf(':');
+      if (colonIdx === -1) continue;
 
-    // Check functional colors
-    const funcMatch = FUNCTIONAL_COLOR_REGEX.exec(line);
-    if (funcMatch) {
-      errors.push(`${fileName}:${i + 1} contains raw functional color "${funcMatch[0]}". Must use picotol tokens.`);
-    }
+      const prop = trimmedDecl.slice(0, colonIdx).trim().toLowerCase();
+      const val = trimmedDecl.slice(colonIdx + 1).trim();
 
-    // Check named colors (only in property values, e.g. color: black; background: white;)
-    if (line.includes(':')) {
-      const value = line.split(':')[1];
-      // Strip valid var(--pt-...) expressions so tokens like var(--pt-red) or var(--pt-yellow) are not falsely flagged
-      const valueWithoutTokens = value.replace(/var\(--pt-[^)]+\)/g, '');
+      // Check hex
+      const hexMatch = HEX_COLOR_REGEX.exec(val);
+      if (hexMatch) {
+        errors.push(`${fileName}:${i + 1} contains raw hex color literal "${hexMatch[0]}". Must use picotol tokens.`);
+      }
+
+      // Check functional colors
+      const funcMatch = FUNCTIONAL_COLOR_REGEX.exec(val);
+      if (funcMatch) {
+        errors.push(`${fileName}:${i + 1} contains raw functional color "${funcMatch[0]}". Must use picotol tokens.`);
+      }
+
+      // Prohibit outline: none or outline: 0
+      if (prop === 'outline' || prop === 'outline-style' || prop === 'outline-width') {
+        if (/\b(?:none|0)\b/i.test(val)) {
+          errors.push(
+            `${fileName}:${i + 1} contains forbidden focus outline suppression "${prop}: ${val}". Do not suppress focus outlines.`
+          );
+        }
+      }
+
+      // Prohibit fixed px font-size
+      if (prop === 'font-size') {
+        if (/\b\d+(?:\.\d+)?px\b/i.test(val)) {
+          errors.push(
+            `${fileName}:${i + 1} contains fixed px font-size "${prop}: ${val}". Must use scalable units (rem, em, %).`
+          );
+        }
+      }
+
+      // Check named colors (only in property values)
+      // Strip valid var(--pt-...) expressions and quoted strings so tokens like var(--pt-red) or content: "red" are not falsely flagged
+      const valueWithoutTokens = val.replace(/var\(--pt-[^)]+\)/g, '').replace(/"[^"]*"|'[^']*'/g, '');
       const namedMatch = NAMED_COLOR_REGEX.exec(valueWithoutTokens);
       if (namedMatch) {
         errors.push(`${fileName}:${i + 1} contains raw named color "${namedMatch[0]}". Must use picotol tokens.`);
