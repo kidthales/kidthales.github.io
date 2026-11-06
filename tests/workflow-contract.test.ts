@@ -52,7 +52,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install chromium --only-shell
       - name: Run CI
         run: ./scripts/ci-local.ps1 -CI
   notify:
@@ -277,6 +277,42 @@ jobs:
   assert.ok(
     errors.some((e) => e.includes('is not in the exact step allowlist')),
     `Expected unallowlisted step error, got: ${errors.join(', ')}`
+  );
+});
+
+test('workflow-contract: rejects legacy Playwright install --with-deps command', () => {
+  const yaml = `
+name: CI
+permissions:
+  contents: read
+concurrency:
+  group: \${{ github.workflow }}-\${{ github.ref }}
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e
+      - uses: zizmorcore/zizmor-action@53290badfa369cb0bf7ad16342cb62c2fa47ac7b
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+      - name: Run CI
+        run: ./scripts/ci-local.ps1 -CI
+  notify:
+    needs: [security, verify]
+    if: always()
+    runs-on: ubuntu-latest
+    env:
+      WEBHOOK: \${{ secrets.DISCORD_CI_WEBHOOK }}
+    steps:
+      - run: echo "done"
+`;
+  const errors = validateWorkflowContent(yaml, 'ci.yml');
+  assert.ok(
+    errors.some((e) => e.includes('is not in the exact step allowlist')),
+    `Expected legacy --with-deps Playwright command to be rejected, got: ${errors.join(', ')}`
   );
 });
 

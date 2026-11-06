@@ -16,7 +16,7 @@ export const CANONICAL_CI_RUNS: ReadonlySet<string> = new Set([
 
 export const EXACT_STEP_ALLOWLIST: ReadonlyMap<string, string> = new Map([
   ['verify/Install dependencies', 'npm ci'],
-  ['verify/Install Playwright browsers', 'npx playwright install --with-deps chromium'],
+  ['verify/Install Playwright browsers', 'npx playwright install chromium --only-shell'],
 ]);
 
 export function validateWorkflowContent(
