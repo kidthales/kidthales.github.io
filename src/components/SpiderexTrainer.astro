@@ -54,9 +54,9 @@ const seedHex = `0x${drill.seed.toString(16).padStart(8, '0')}`;
       <div class="spiderex-field">
         <label id="spiderex-variant-label">Variant</label>
         <div class="spiderex-stepper-group" role="group" aria-labelledby="spiderex-variant-label">
-          <button type="button" id="spiderex-prev" class="spiderex-btn spiderex-stepper-btn" aria-label="Previous variant" disabled><span aria-hidden="true">‹</span></button>
+          <button type="button" id="spiderex-prev" class="spiderex-btn spiderex-stepper-btn" disabled><span aria-hidden="true">‹</span><span class="pt-visually-hidden">Previous variant</span></button>
           <span id="spiderex-variant-badge" class="spiderex-variant-badge pt-tabular-nums">v{initialParams.variant}</span>
-          <button type="button" id="spiderex-next" class="spiderex-btn spiderex-stepper-btn" aria-label="Next variant"><span aria-hidden="true">›</span></button>
+          <button type="button" id="spiderex-next" class="spiderex-btn spiderex-stepper-btn"><span aria-hidden="true">›</span><span class="pt-visually-hidden">Next variant</span></button>
         </div>
       </div>
 
