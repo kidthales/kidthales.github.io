@@ -12,7 +12,7 @@
     - Gate 6: Content lints, errata guard, negative smoke checks & dist restore
     - Local CI receipt generation (.ci-local/receipt.json via seldon ci receipt)
 .PARAMETER BaseRef
-    Base git ref to compare against (defaults to merge-base with origin/next).
+    Base git ref to compare against (defaults to merge-base with origin/main).
 .PARAMETER CI
     Enforces strict fail-closed contract for CI runners: emits GitHub Actions log groups and annotations.
 .PARAMETER Quick
@@ -73,11 +73,11 @@ if ($IsCI -and $Quick) {
 
 # Determine merge-base if BaseRef is omitted
 if (-not $BaseRef) {
-    $mergeBase = & git -C $RootDir merge-base HEAD origin/next 2>$null
+    $mergeBase = & git -C $RootDir merge-base HEAD origin/main 2>$null
     if ($LASTEXITCODE -eq 0 -and $mergeBase) {
         $BaseRef = $mergeBase.Trim()
     } else {
-        $BaseRef = "origin/next"
+        $BaseRef = "origin/main"
     }
 }
 

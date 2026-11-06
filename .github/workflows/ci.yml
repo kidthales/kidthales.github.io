@@ -3,11 +3,9 @@ name: CI
 on:
   push:
     branches:
-      - next
       - main
   pull_request:
     branches:
-      - next
       - main
   workflow_dispatch:
 

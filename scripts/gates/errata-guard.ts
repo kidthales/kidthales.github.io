@@ -598,7 +598,7 @@ export function runErrataGuardCli(argv: string[] = process.argv.slice(2)): numbe
   if (baseDir && headDir) {
     result = compareWordsDirectories(baseDir, headDir);
   } else {
-    const resolvedBaseRef = baseRef || 'origin/next';
+    const resolvedBaseRef = baseRef || 'origin/main';
     result = compareWordsAgainstGitRef(repoDir, resolvedBaseRef);
   }
 
