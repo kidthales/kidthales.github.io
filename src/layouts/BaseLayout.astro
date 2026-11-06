@@ -65,8 +65,8 @@ const fullTitle = Astro.url.pathname === '/' ? title : `${title} | ${siteTitle}`
     <meta name="twitter:title" content={title} />
     {description && <meta name="twitter:description" content={description} />}
   </head>
-  <body>
-    <a href="#main" class="skip-to-content">Skip to content</a>
+  <body class="pt-app">
+    <a href="#main" class="pt-skip-to-content">Skip to content</a>
     <header>
       <nav aria-label="Main navigation">
         <ul>

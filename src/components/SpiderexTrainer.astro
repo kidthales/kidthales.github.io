@@ -33,7 +33,7 @@ const seedHex = `0x${drill.seed.toString(16).padStart(8, '0')}`;
   data-skip={String(initialParams.skip)}
 >
   <!-- Controls Bar -->
-  <section class="spiderex-controls-panel card" aria-label="Spiderex Trainer Controls">
+  <section class="spiderex-controls-panel pt-card" aria-label="Spiderex Trainer Controls">
     <div class="spiderex-controls-grid">
       <!-- Drill Date group: Date picker + Today button -->
       <div class="spiderex-field">
@@ -44,7 +44,7 @@ const seedHex = `0x${drill.seed.toString(16).padStart(8, '0')}`;
             id="spiderex-date"
             name="date"
             value={initialParams.date}
-            class="spiderex-input tabular-nums"
+            class="spiderex-input pt-tabular-nums"
           />
           <button type="button" id="spiderex-today" class="spiderex-btn">Today</button>
         </div>
@@ -55,7 +55,7 @@ const seedHex = `0x${drill.seed.toString(16).padStart(8, '0')}`;
         <label id="spiderex-variant-label">Variant</label>
         <div class="spiderex-stepper-group" role="group" aria-labelledby="spiderex-variant-label">
           <button type="button" id="spiderex-prev" class="spiderex-btn spiderex-stepper-btn" aria-label="Previous variant" disabled>‹</button>
-          <span id="spiderex-variant-badge" class="spiderex-variant-badge tabular-nums">v{initialParams.variant}</span>
+          <span id="spiderex-variant-badge" class="spiderex-variant-badge pt-tabular-nums">v{initialParams.variant}</span>
           <button type="button" id="spiderex-next" class="spiderex-btn spiderex-stepper-btn" aria-label="Next variant">›</button>
         </div>
       </div>
@@ -91,11 +91,11 @@ const seedHex = `0x${drill.seed.toString(16).padStart(8, '0')}`;
     </div>
 
     <!-- Screen Reader Status Announcements -->
-    <div id="spiderex-status" class="visually-hidden" aria-live="polite" role="status"></div>
+    <div id="spiderex-status" class="pt-visually-hidden" aria-live="polite" role="status"></div>
   </section>
 
   <!-- Finger Geometric Badges Legend -->
-  <section class="spiderex-legend card" aria-label="Finger Shapes & Tokens Legend">
+  <section class="spiderex-legend pt-card" aria-label="Finger Shapes & Tokens Legend">
     <div class="spiderex-legend-grid">
       <div class="legend-item">
         <svg class="legend-badge-svg" viewBox="0 0 32 32" width="24" height="24" aria-hidden="true">
@@ -132,7 +132,7 @@ const seedHex = `0x${drill.seed.toString(16).padStart(8, '0')}`;
   </section>
 
   <!-- Drill Metadata Summary -->
-  <p id="spiderex-meta-summary" class="spiderex-meta tabular-nums">
+  <p id="spiderex-meta-summary" class="spiderex-meta pt-tabular-nums">
     {drill.params.date} (v{drill.params.variant}) — {drill.params.strings} Strings — {modeLabel} — Seed: {seedHex}
   </p>
 
@@ -156,7 +156,7 @@ const seedHex = `0x${drill.seed.toString(16).padStart(8, '0')}`;
 
     <details open class="spiderex-details twister-tab-details">
       <summary class="spiderex-summary">Synchronized ASCII Tablature (16 Bars)</summary>
-      <pre class="spiderex-pre"><code id="spiderex-twister-tab" class="spiderex-code tabular-nums">{asciiTab}</code></pre>
+      <pre class="spiderex-pre"><code id="spiderex-twister-tab" class="spiderex-code pt-tabular-nums">{asciiTab}</code></pre>
     </details>
   </section>
 </spiderex-trainer>
@@ -468,6 +468,7 @@ const seedHex = `0x${drill.seed.toString(16).padStart(8, '0')}`;
     color: var(--pt-color);
   }
 
+  .pt-visually-hidden,
   .visually-hidden {
     position: absolute;
     width: 1px;
