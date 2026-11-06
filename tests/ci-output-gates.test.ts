@@ -762,3 +762,31 @@ test('zero-js gate: detects unreferenced .js file in dist when island route is d
   assert.equal(result.ok, false);
   assert.ok(result.errors.some((e) => e.includes('Unreferenced client JavaScript file') && e.includes('unreferenced.js')));
 });
+
+test('fouc prevention: astro.config.mjs inlines stylesheets and all head templates declare color-scheme meta', () => {
+  const astroConfig = fs.readFileSync(path.join(process.cwd(), 'astro.config.mjs'), 'utf8');
+  assert.match(
+    astroConfig,
+    /inlineStylesheets\s*:\s*['"]always['"]/,
+    'astro.config.mjs must set build.inlineStylesheets to "always" to prevent FOUC'
+  );
+
+  const headFiles = [
+    'src/layouts/BaseLayout.astro',
+    'src/pages/spiderex.astro',
+    'src/pages/pgmmv/index.astro',
+    'src/pages/pgmmv/collision-plugin.astro',
+    'src/pages/pgmmv/coordinates-plugin.astro',
+    'src/pages/pgmmv/snap-to-tile-plugin.astro',
+    'src/pages/pgmmv/storage-plugin.astro',
+  ];
+
+  for (const relPath of headFiles) {
+    const content = fs.readFileSync(path.join(process.cwd(), relPath), 'utf8');
+    assert.match(
+      content,
+      /<meta\s+name=["']color-scheme["']\s+content=["']light dark["']\s*\/?>/,
+      `${relPath} must declare <meta name="color-scheme" content="light dark" /> in <head>`
+    );
+  }
+});
