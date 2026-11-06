@@ -31,3 +31,6 @@ updates:
           - "*"
     ignore:
       - dependency-name: "@kidthales/picotol"
+      - dependency-name: "typescript"
+        update-types:
+          - "version-update:semver-major"
