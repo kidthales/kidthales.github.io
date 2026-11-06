@@ -1,0 +1,65 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import {
+  getPublishedWorks,
+  isRetired,
+  formatDate,
+  KIND_LABELS,
+  KIND_GLYPHS,
+} from '../../lib/works';
+
+const works = await getPublishedWorks();
+---
+
+<BaseLayout
+  title="Works"
+  description="Software tools, interactive applications, and games by kidthales."
+>
+  <article class="pt-prose">
+    <header>
+      <h1>Works</h1>
+      <p>
+        Software tools, interactive applications, and games exploring systems craft,
+        fretboard mechanics, and digital design.
+      </p>
+    </header>
+
+    <section aria-labelledby="all-works-heading">
+      <h2 id="all-works-heading" class="pt-sr-only">All Works</h2>
+      {works.length === 0 ? (
+        <p>No published works yet.</p>
+      ) : (
+        <ul class="entry-list">
+          {works.map((work) => {
+            const kind = work.data.kind;
+            const label = KIND_LABELS[kind];
+            const glyph = KIND_GLYPHS[kind];
+            const retired = isRetired(work);
+            const isExternal = Boolean(work.data.external_url);
+            return (
+              <li>
+                <span class="entry-form">
+                  <span aria-hidden="true">{glyph}</span> {label}
+                </span>
+                {' '}&bull;{' '}
+                <time datetime={formatDate(work.data.published_on)}>
+                  {formatDate(work.data.published_on)}
+                </time>
+                {' '}&bull;{' '}
+                {isExternal ? (
+                  <a href={work.data.external_url} rel="external">
+                    {work.data.title} <span aria-hidden="true">↗</span>
+                  </a>
+                ) : (
+                  <a href={`/works/${work.id}/`}>{work.data.title}</a>
+                )}
+                {retired && <span class="marker"> [Retired]</span>}
+                <p class="work-desc">{work.data.description}</p>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  </article>
+</BaseLayout>
