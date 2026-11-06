@@ -52,9 +52,9 @@ const { Content } = await render(work);
   publishedTime={work.data.published_on ? new Date(work.data.published_on).toISOString() : undefined}
   noindex={false}
 >
-  <article class="prose">
+  <article class="pt-prose">
     {retired && (
-      <aside class="callout callout-retired" aria-label="Retirement notice">
+      <aside class="pt-callout callout-retired" aria-label="Retirement notice">
         <p>
           <strong>Retired on <time datetime={retiredDate}>{retiredDate}</time>:</strong>{' '}
           {work.data.retirement_note}

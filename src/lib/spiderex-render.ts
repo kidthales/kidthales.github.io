@@ -174,10 +174,10 @@ export function renderWarmupCards(warmup: WarmupDrill, _strings?: StringCount): 
     const patternLabel = pattern.join('-');
     const patternSvg = renderWarmupPatternSvg(pattern);
 
-    cards.push(`<article class="card warmup-card" data-pattern-index="${i}">
+    cards.push(`<article class="pt-card warmup-card" data-pattern-index="${i}">
   <header class="warmup-card-header">
     <h4 class="warmup-card-title">Pattern ${i + 1}</h4>
-    <code class="warmup-pattern-code tabular-nums">${patternLabel}</code>
+    <code class="warmup-pattern-code pt-tabular-nums">${patternLabel}</code>
   </header>
   <div class="warmup-svg-wrap">
     ${patternSvg}

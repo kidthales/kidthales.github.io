@@ -16,7 +16,7 @@ const entries = await getPublishedEntries();
   title="Words"
   description="Essays, architectural field notes, and technical papers by kidthales."
 >
-  <article class="prose">
+  <article class="pt-prose">
     <header>
       <h1>Words</h1>
       <p>
@@ -35,7 +35,7 @@ const entries = await getPublishedEntries();
     </header>
 
     <section aria-labelledby="all-words-heading">
-      <h2 id="all-words-heading" class="sr-only">All Entries</h2>
+      <h2 id="all-words-heading" class="pt-sr-only">All Entries</h2>
       {entries.length === 0 ? (
         <p>No published entries yet.</p>
       ) : (

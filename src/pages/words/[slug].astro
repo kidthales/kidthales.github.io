@@ -75,7 +75,7 @@ const typoErrata = sortedErrata.filter((e) => e.class === 'typo');
   noindex={isWithdrawn}
 >
   {isWithdrawn ? (
-    <article class="prose tombstone" data-entry-form={form}>
+    <article class="pt-prose tombstone" data-entry-form={form}>
       <header>
         <h1>{entry.data.title}</h1>
         <p class="metadata">
@@ -91,7 +91,7 @@ const typoErrata = sortedErrata.filter((e) => e.class === 'typo');
         </p>
       </header>
 
-      <aside class="callout callout-withdrawal" aria-label="Withdrawal notice">
+      <aside class="pt-callout callout-withdrawal" aria-label="Withdrawal notice">
         <p>{entry.data.withdrawal_note}</p>
       </aside>
 
@@ -102,9 +102,9 @@ const typoErrata = sortedErrata.filter((e) => e.class === 'typo');
       </footer>
     </article>
   ) : (
-    <article class="prose" data-entry-form={form}>
+    <article class="pt-prose" data-entry-form={form}>
       {successor && (
-        <aside class="callout callout-superseded" aria-label="Superseded notice">
+        <aside class="pt-callout callout-superseded" aria-label="Superseded notice">
           <p>
             Superseded by{' '}
             <a href={`/words/${successor.id}/`}>{successor.data.title}</a> on{' '}
@@ -116,7 +116,7 @@ const typoErrata = sortedErrata.filter((e) => e.class === 'typo');
       )}
 
       {predecessors.length > 0 && (
-        <aside class="callout callout-supersedes" aria-label="Supersession notice">
+        <aside class="pt-callout callout-supersedes" aria-label="Supersession notice">
           <p>
             Supersedes{' '}
             {predecessors.map((p, idx) => (
@@ -130,7 +130,7 @@ const typoErrata = sortedErrata.filter((e) => e.class === 'typo');
       )}
 
       {errataCalloutText && (
-        <aside class="callout callout-errata" aria-label="Errata notice">
+        <aside class="pt-callout callout-errata" aria-label="Errata notice">
           <p>
             {errataCalloutText} &mdash; <a href="#errata">see errata</a>
           </p>
