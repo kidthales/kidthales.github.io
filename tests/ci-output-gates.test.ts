@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
 import { validateManifest, type WorksIsland } from '../scripts/gates/islands.ts';
 import { checkZeroJs } from '../scripts/gates/zero-js.ts';
 import { checkOrigins, isNonSameOrigin, scanHtmlResources } from '../scripts/gates/origins.ts';
@@ -881,7 +881,7 @@ test('ci-local.ps1 execution: rejects invalid flag combinations under -CI fail-c
   ];
 
   for (const inv of invalidInvocations) {
-    const res = spawnSync(pwsh, ['-NoProfile', '-File', scriptPath, ...inv.args], {
+    const res: SpawnSyncReturns<string> = spawnSync(pwsh, ['-NoProfile', '-File', scriptPath, ...inv.args], {
       cwd: process.cwd(),
       encoding: 'utf8',
     });
@@ -911,7 +911,7 @@ test('ci-local.ps1 execution: -Gate0Only emits structured Schema v2 Gate Summary
   }
 
   const scriptPath = path.join(process.cwd(), 'scripts', 'ci-local.ps1');
-  const res = spawnSync(pwsh, ['-NoProfile', '-File', scriptPath, '-Gate0Only'], {
+  const res: SpawnSyncReturns<string> = spawnSync(pwsh, ['-NoProfile', '-File', scriptPath, '-Gate0Only'], {
     cwd: process.cwd(),
     encoding: 'utf8',
   });
@@ -942,7 +942,7 @@ test('ci-local.ps1 execution: gate failure emits structured Gate Summary in catc
 
   const scriptPath = path.join(process.cwd(), 'scripts', 'ci-local.ps1');
   // Pass tests/fixtures as WorkflowsPath which has no workflow yml files, forcing Gate 0 failure
-  const res = spawnSync(
+  const res: SpawnSyncReturns<string> = spawnSync(
     pwsh,
     ['-NoProfile', '-File', scriptPath, '-Gate0Only', '-WorkflowsPath', 'tests/fixtures'],
     {
