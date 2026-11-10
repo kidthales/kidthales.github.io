@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
 import { validateManifest, type WorksIsland } from '../scripts/gates/islands.ts';
 import { checkZeroJs } from '../scripts/gates/zero-js.ts';
 import { checkOrigins, isNonSameOrigin, scanHtmlResources } from '../scripts/gates/origins.ts';
@@ -789,4 +790,183 @@ test('fouc prevention: astro.config.mjs inlines stylesheets and all head templat
       `${relPath} must declare <meta name="color-scheme" content="light dark" /> in <head>`
     );
   }
+});
+
+function getAvailablePwsh(): string | null {
+  for (const cmd of ['pwsh', 'pwsh.exe', 'powershell', 'powershell.exe']) {
+    try {
+      const res = spawnSync(cmd, ['-NoProfile', '-Command', '$PSVersionTable.PSVersion.Major'], {
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+      if (res.status === 0 && res.stdout) {
+        return cmd;
+      }
+    } catch {
+      // Continue search
+    }
+  }
+  return null;
+}
+
+test('ci-local.ps1 contract: eliminates deprecated receipt invocation and enforces Schema v2 gate keys', () => {
+  const scriptPath = path.join(process.cwd(), 'scripts', 'ci-local.ps1');
+  const content = fs.readFileSync(scriptPath, 'utf8');
+
+  // Must not reference deprecated seldon ci receipt or $SeldonBin
+  assert.equal(
+    content.includes('seldon ci receipt'),
+    false,
+    'scripts/ci-local.ps1 must not invoke standalone seldon ci receipt subcommand'
+  );
+  assert.equal(
+    content.includes('$SeldonBin'),
+    false,
+    'scripts/ci-local.ps1 must not contain legacy $SeldonBin lookup'
+  );
+  assert.equal(
+    content.includes('.ci-local/receipt.json'),
+    false,
+    'scripts/ci-local.ps1 must not manually write or reference .ci-local/receipt.json'
+  );
+
+  // Must declare required CLI parameters
+  assert.match(content, /\[string\]\$BaseRef\b/);
+  assert.match(content, /\[switch\]\$CI\b/);
+  assert.match(content, /\[switch\]\$Quick\b/);
+  assert.match(content, /\[switch\]\$Gate0Only\b/);
+  assert.match(content, /\[string\]\$WorkflowsPath\b/);
+
+  // Must declare all 7 Schema v2 gate keys
+  const expectedGateKeys = [
+    'gate0_workflow_contract',
+    'gate1_action_pins_and_leaks',
+    'gate2_pwsh_ast',
+    'gate3_typecheck_contrast_and_unit',
+    'gate4_prod_build_and_structural',
+    'gate5_fixture_axe_and_budgets',
+    'gate6_lints_errata_and_negative',
+  ];
+
+  for (const key of expectedGateKeys) {
+    assert.match(
+      content,
+      new RegExp(`["']${key}["']\\s*=`),
+      `scripts/ci-local.ps1 must define gate result key '${key}'`
+    );
+  }
+
+  // Must define and call Write-GateSummary
+  assert.match(content, /function\s+Write-GateSummary\b/);
+  assert.match(content, /Write-GateSummary/);
+});
+
+test('ci-local.ps1 execution: rejects invalid flag combinations under -CI fail-closed mode', (t) => {
+  const pwsh = getAvailablePwsh();
+  if (!pwsh) {
+    t.skip('PowerShell (pwsh/powershell) not available in runtime environment');
+    return;
+  }
+
+  const scriptPath = path.join(process.cwd(), 'scripts', 'ci-local.ps1');
+
+  const invalidInvocations = [
+    { args: ['-CI', '-Quick'], expectedFlag: '-Quick' },
+    { args: ['-CI', '-Gate0Only'], expectedFlag: '-Gate0Only' },
+    { args: ['-CI', '-WorkflowsPath', 'dummy'], expectedFlag: '-WorkflowsPath' },
+    {
+      args: ['-CI', '-Quick', '-Gate0Only', '-WorkflowsPath', 'dummy'],
+      expectedFlag: '-Quick, -Gate0Only, -WorkflowsPath',
+    },
+  ];
+
+  for (const inv of invalidInvocations) {
+    const res: SpawnSyncReturns<string> = spawnSync(pwsh, ['-NoProfile', '-File', scriptPath, ...inv.args], {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+    });
+
+    assert.equal(
+      res.status,
+      1,
+      `Expected exit code 1 for invalid flags: ${inv.args.join(' ')}`
+    );
+    const combinedOutput = `${res.stdout || ''}\n${res.stderr || ''}`;
+    assert.ok(
+      combinedOutput.includes('CI mode is fail-closed and cannot be combined with skip or partial flags'),
+      `Output must explain fail-closed rejection for ${inv.args.join(' ')}`
+    );
+    assert.ok(
+      combinedOutput.includes(inv.expectedFlag),
+      `Output must list rejected flag '${inv.expectedFlag}' for ${inv.args.join(' ')}`
+    );
+  }
+});
+
+test('ci-local.ps1 execution: -Gate0Only emits structured Schema v2 Gate Summary and exits 0', (t) => {
+  const pwsh = getAvailablePwsh();
+  if (!pwsh) {
+    t.skip('PowerShell (pwsh/powershell) not available in runtime environment');
+    return;
+  }
+
+  const cleanEnv: NodeJS.ProcessEnv = { ...process.env };
+  delete cleanEnv.GITHUB_ACTIONS;
+
+  const scriptPath = path.join(process.cwd(), 'scripts', 'ci-local.ps1');
+  const res: SpawnSyncReturns<string> = spawnSync(pwsh, ['-NoProfile', '-File', scriptPath, '-Gate0Only'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env: cleanEnv,
+  });
+
+  assert.equal(
+    res.status,
+    0,
+    `Expected exit code 0 for -Gate0Only, got ${res.status}. Output:\n${res.stdout}\n${res.stderr}`
+  );
+
+  const stdout = res.stdout || '';
+  assert.ok(stdout.includes('Gate Summary:'), 'Output must contain "Gate Summary:" header');
+  assert.match(stdout, /\[gate0_workflow_contract:\s*PASS\]/);
+  assert.match(stdout, /\[gate1_action_pins_and_leaks:\s*NOT-APPLICABLE\]/);
+  assert.match(stdout, /\[gate2_pwsh_ast:\s*NOT-APPLICABLE\]/);
+  assert.match(stdout, /\[gate3_typecheck_contrast_and_unit:\s*NOT-APPLICABLE\]/);
+  assert.match(stdout, /\[gate4_prod_build_and_structural:\s*NOT-APPLICABLE\]/);
+  assert.match(stdout, /\[gate5_fixture_axe_and_budgets:\s*NOT-APPLICABLE\]/);
+  assert.match(stdout, /\[gate6_lints_errata_and_negative:\s*NOT-APPLICABLE\]/);
+});
+
+test('ci-local.ps1 execution: gate failure emits structured Gate Summary in catch block and exits 1', (t) => {
+  const pwsh = getAvailablePwsh();
+  if (!pwsh) {
+    t.skip('PowerShell (pwsh/powershell) not available in runtime environment');
+    return;
+  }
+
+  const cleanEnv: NodeJS.ProcessEnv = { ...process.env };
+  delete cleanEnv.GITHUB_ACTIONS;
+
+  const scriptPath = path.join(process.cwd(), 'scripts', 'ci-local.ps1');
+  // Pass tests/fixtures as WorkflowsPath which has no workflow yml files, forcing Gate 0 failure
+  const res: SpawnSyncReturns<string> = spawnSync(
+    pwsh,
+    ['-NoProfile', '-File', scriptPath, '-Gate0Only', '-WorkflowsPath', 'tests/fixtures'],
+    {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      env: cleanEnv,
+    }
+  );
+
+  assert.equal(
+    res.status,
+    1,
+    `Expected exit code 1 for failing gate, got ${res.status}`
+  );
+
+  const stdout = res.stdout || '';
+  assert.ok(stdout.includes('Gate Summary:'), 'Output must contain "Gate Summary:" header on failure');
+  assert.match(stdout, /\[gate0_workflow_contract:\s*FAIL\]/);
+  assert.ok(stdout.includes('CI FAILED:'), 'Output must contain "CI FAILED:" message on failure');
 });
