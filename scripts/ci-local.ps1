@@ -10,22 +10,24 @@
     - Gate 4: Production build, structural gates & weight budgets
     - Gate 5: Fixture build, diagnostics, accessibility & fixture budgets
     - Gate 6: Content lints, errata guard, negative smoke checks & dist restore
-    - Local CI receipt generation (.ci-local/receipt.json via seldon ci receipt)
 .PARAMETER BaseRef
     Base git ref to compare against (defaults to merge-base with origin/main).
 .PARAMETER CI
     Enforces strict fail-closed contract for CI runners: emits GitHub Actions log groups and annotations.
 .PARAMETER Quick
-    Skips E2E negative build smoke checks and skips local CI receipt generation. Forbidden in -CI mode.
+    Skips E2E negative build smoke checks. Forbidden in -CI mode.
 .PARAMETER Gate0Only
-    Executes Gate 0 workflow contract verification and exits.
+    Executes Gate 0 workflow contract verification and exits. Forbidden in -CI mode.
+.PARAMETER WorkflowsPath
+    Custom path to workflow definitions directory (defaults to .github/workflows). Forbidden in -CI mode.
 #>
 [CmdletBinding()]
 param(
     [string]$BaseRef = "",
     [switch]$CI,
     [switch]$Quick,
-    [switch]$Gate0Only
+    [switch]$Gate0Only,
+    [string]$WorkflowsPath = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -46,10 +48,7 @@ function Enter-Gate([int]$Gate, [int]$MaxGate, [string]$Title) {
     }
 }
 
-function Exit-GatePass([string]$GateKey, [string]$Message, [System.Diagnostics.Stopwatch]$Timer) {
-    if ($GateKey -and $GateResults.Contains($GateKey)) {
-        $GateResults[$GateKey] = "pass"
-    }
+function Exit-GatePass([string]$Message, [System.Diagnostics.Stopwatch]$Timer) {
     $elapsed = [math]::Round($Timer.Elapsed.TotalSeconds, 2)
     Write-Host "  -> [OK] $Message (${elapsed}s)" -ForegroundColor Green
     if ($IsCI -and $script:InGroup) {
@@ -65,10 +64,49 @@ function Write-Fail([string]$Message) {
     Write-Host "  -> [FAIL] $Message" -ForegroundColor Red
 }
 
-# Fail-closed guard for -CI mode: reject -Quick immediately
-if ($IsCI -and $Quick) {
-    Write-Fail "CI mode forbids -Quick flag; the full verification pipeline must execute."
-    exit 1
+$GateResults = [ordered]@{
+    "gate0_workflow_contract"           = "fail"
+    "gate1_action_pins_and_leaks"       = "fail"
+    "gate2_pwsh_ast"                    = "fail"
+    "gate3_typecheck_contrast_and_unit" = "fail"
+    "gate4_prod_build_and_structural"   = "fail"
+    "gate5_fixture_axe_and_budgets"     = "fail"
+    "gate6_lints_errata_and_negative"   = "fail"
+}
+
+function Write-GateSummary {
+    Write-Host "`nGate Summary:" -ForegroundColor Cyan
+    foreach ($k in $GateResults.Keys) {
+        $v = "$($GateResults[$k])".ToUpperInvariant()
+        Write-Host "  [${k}: $v]"
+    }
+}
+
+# Fail-closed guard for -CI mode: reject skip or partial flags immediately
+if ($IsCI) {
+    $rejectedFlags = @()
+    if ($Quick) { $rejectedFlags += "-Quick" }
+    if ($Gate0Only) { $rejectedFlags += "-Gate0Only" }
+    if ($WorkflowsPath) { $rejectedFlags += "-WorkflowsPath" }
+    if ($rejectedFlags.Count -gt 0) {
+        $flagList = $rejectedFlags -join ", "
+        Write-Fail "CI mode is fail-closed and cannot be combined with skip or partial flags ($flagList)."
+        exit 1
+    }
+
+    # Verify required tools upfront under -CI so missing binaries never silently degrade
+    $requiredTools = @(
+        @{ Name = "git"; Hint = "Install Git and ensure 'git' is on PATH." },
+        @{ Name = "node"; Hint = "Install Node.js (via .nvmrc) and ensure 'node' is on PATH." },
+        @{ Name = "npm"; Hint = "Install npm and ensure 'npm' is on PATH." },
+        @{ Name = "npx"; Hint = "Install npx and ensure 'npx' is on PATH." }
+    )
+    foreach ($tool in $requiredTools) {
+        if (-not (Get-Command $tool.Name -ErrorAction SilentlyContinue)) {
+            Write-Fail "-CI mode requires '$($tool.Name)' in PATH, but it was not found. $($tool.Hint)"
+            exit 1
+        }
+    }
 }
 
 # Determine merge-base if BaseRef is omitted
@@ -93,16 +131,6 @@ try {
     Write-Host " BaseRef: $BaseRef" -ForegroundColor Gray
     Write-Host "====================================================" -ForegroundColor Cyan
 
-    $GateResults = [ordered]@{
-        "gate0_workflow_contract"           = "fail"
-        "gate1_action_pins_and_leaks"       = "fail"
-        "gate2_pwsh_ast"                    = "fail"
-        "gate3_typecheck_contrast_and_unit" = "fail"
-        "gate4_prod_build_and_structural"   = "fail"
-        "gate5_fixture_axe_and_budgets"     = "fail"
-        "gate6_lints_errata_and_negative"   = "fail"
-    }
-
     $MaxGate = 6
 
     # -------------------------------------------------------------
@@ -110,15 +138,28 @@ try {
     # -------------------------------------------------------------
     $Gate0Timer = [System.Diagnostics.Stopwatch]::StartNew()
     Enter-Gate 0 $MaxGate "Workflow Single-Source Contract"
-    Write-Host "Running: node --experimental-strip-types scripts/gates/workflow-contract.ts .github/workflows..." -ForegroundColor Yellow
-    & node --experimental-strip-types scripts/gates/workflow-contract.ts .github/workflows
+    $targetWorkflows = if ($WorkflowsPath) { $WorkflowsPath } else { Join-Path $RootDir ".github/workflows" }
+    Write-Host "Running: node --experimental-strip-types scripts/gates/workflow-contract.ts $targetWorkflows..." -ForegroundColor Yellow
+    & node --experimental-strip-types scripts/gates/workflow-contract.ts $targetWorkflows
     if ($LASTEXITCODE -ne 0) {
         Write-Fail "Workflow contract verification failed."
         throw "Gate 0 Failed: Workflow contract verification failed."
     }
-    Exit-GatePass "gate0_workflow_contract" "All workflows conform to workflow-contract.ts AST invariants" $Gate0Timer
+    $GateResults["gate0_workflow_contract"] = "pass"
+    Exit-GatePass "All workflows conform to workflow-contract.ts AST invariants" $Gate0Timer
 
     if ($Gate0Only) {
+        $GateResults["gate1_action_pins_and_leaks"] = "not-applicable"
+        $GateResults["gate2_pwsh_ast"] = "not-applicable"
+        $GateResults["gate3_typecheck_contrast_and_unit"] = "not-applicable"
+        $GateResults["gate4_prod_build_and_structural"] = "not-applicable"
+        $GateResults["gate5_fixture_axe_and_budgets"] = "not-applicable"
+        $GateResults["gate6_lints_errata_and_negative"] = "not-applicable"
+        Write-GateSummary
+        $totalElapsed = [math]::Round($TotalTimer.Elapsed.TotalSeconds, 2)
+        Write-Host "`n====================================================" -ForegroundColor Green
+        Write-Host " Gate 0 Workflow Contract Verification PASSED in ${totalElapsed}s" -ForegroundColor Green
+        Write-Host "====================================================" -ForegroundColor Green
         exit 0
     }
 
@@ -127,7 +168,7 @@ try {
     # -------------------------------------------------------------
     $Gate1Timer = [System.Diagnostics.Stopwatch]::StartNew()
     Enter-Gate 1 $MaxGate "Action Commit SHA Pinning & Agent File Leak Audit"
-    $wfDir = Join-Path $RootDir ".github/workflows"
+    $wfDir = if ($WorkflowsPath) { $WorkflowsPath } else { Join-Path $RootDir ".github/workflows" }
     if (Test-Path $wfDir) {
         $wfFiles = Get-ChildItem -Path $wfDir -File | Where-Object { $_.Extension -in @(".yml", ".yaml") }
         $unpinned = @()
@@ -161,7 +202,8 @@ try {
         Write-Fail "Agent or scratch file leak detected."
         throw "Gate 1 Failed: Agent or scratch file leak detected."
     }
-    Exit-GatePass "gate1_action_pins_and_leaks" "Action commit SHA pins and agent leak audits passed" $Gate1Timer
+    $GateResults["gate1_action_pins_and_leaks"] = "pass"
+    Exit-GatePass "Action commit SHA pins and agent leak audits passed" $Gate1Timer
 
     # -------------------------------------------------------------
     # Gate 2: PowerShell AST Parse Validation (*.ps1)
@@ -182,7 +224,8 @@ try {
     if ($ParseErrors -gt 0) {
         throw "Gate 2 Failed: $ParseErrors PowerShell script(s) failed AST parse validation."
     }
-    Exit-GatePass "gate2_pwsh_ast" "PowerShell AST validation passed ($($Ps1Files.Count) script(s))" $Gate2Timer
+    $GateResults["gate2_pwsh_ast"] = "pass"
+    Exit-GatePass "PowerShell AST validation passed ($($Ps1Files.Count) script(s))" $Gate2Timer
 
     # -------------------------------------------------------------
     # Gate 3: Typecheck, Static Contrast Pairs & Unit Tests
@@ -225,7 +268,8 @@ try {
         throw "CI Step Failed: Working tree was dirtied by npm test."
     }
 
-    Exit-GatePass "gate3_typecheck_contrast_and_unit" "Typecheck, contrast pairs, and unit tests passed with clean working tree" $Gate3Timer
+    $GateResults["gate3_typecheck_contrast_and_unit"] = "pass"
+    Exit-GatePass "Typecheck, contrast pairs, and unit tests passed with clean working tree" $Gate3Timer
 
     # -------------------------------------------------------------
     # Gate 4: Production Build & Structural Output Gates
@@ -288,7 +332,8 @@ try {
     # Stage Production dist/ to Temporary Cache
     if (Test-Path $prodDistBackup) { Remove-Item -Recurse -Force $prodDistBackup }
     Copy-Item -Recurse -Force (Join-Path $RootDir "dist") $prodDistBackup
-    Exit-GatePass "gate4_prod_build_and_structural" "Production build, structural gates, and production weight budgets passed" $Gate4Timer
+    $GateResults["gate4_prod_build_and_structural"] = "pass"
+    Exit-GatePass "Production build, structural gates, and production weight budgets passed" $Gate4Timer
 
     # -------------------------------------------------------------
     # Gate 5: Fixture Build, Accessibility Audit & Budgets
@@ -338,7 +383,8 @@ try {
         Write-Fail "Fixture Weight Budgets gate returned exit code $LASTEXITCODE"
         throw "CI Step Failed: Fixture Weight Budgets gate returned exit code $LASTEXITCODE"
     }
-    Exit-GatePass "gate5_fixture_axe_and_budgets" "Fixture build, diagnostics, single-pass axe audit, and fixture weight budgets passed" $Gate5Timer
+    $GateResults["gate5_fixture_axe_and_budgets"] = "pass"
+    Exit-GatePass "Fixture build, diagnostics, single-pass axe audit, and fixture weight budgets passed" $Gate5Timer
 
     # -------------------------------------------------------------
     # Gate 6: Lints, Errata Guard, Negative Scenarios & Restore
@@ -419,58 +465,30 @@ try {
         Write-Fail "Production dist/index.html does not exist after restore."
         throw "CI Step Failed: Production dist/index.html does not exist after restore."
     }
-    Exit-GatePass "gate6_lints_errata_and_negative" "Lints, errata guard, negative build smoke checks, and prod dist restore passed" $Gate6Timer
+    $GateResults["gate6_lints_errata_and_negative"] = "pass"
+    Exit-GatePass "Lints, errata guard, negative build smoke checks, and prod dist restore passed" $Gate6Timer
 
     $totalElapsed = [math]::Round($TotalTimer.Elapsed.TotalSeconds, 2)
+
+    # Emit structured gate summary lines for seldon ci run and human operator visibility
+    Write-GateSummary
+
     Write-Host "`n====================================================" -ForegroundColor Green
     Write-Host " All CI Gates PASSED in ${totalElapsed}s" -ForegroundColor Green
     Write-Host "====================================================" -ForegroundColor Cyan
 
-    # -------------------------------------------------------------
-    # Local CI Receipt Generation (.ci-local/receipt.json)
-    # -------------------------------------------------------------
-    if ($IsCI) {
-        Write-Host "`n  -> Skipping local CI receipt generation under -CI mode." -ForegroundColor Gray
-    } elseif ($Quick) {
-        Write-Host "`n  -> Skipping local CI receipt generation under -Quick mode." -ForegroundColor Gray
-    } else {
-        $SeldonBin = $null
-        if ($env:SELDON_BIN -and $env:SELDON_BIN -ne "none" -and (Test-Path $env:SELDON_BIN)) {
-            $SeldonBin = $env:SELDON_BIN
-        } else {
-            $PathCmd = Get-Command "seldon" -ErrorAction SilentlyContinue
-            if ($PathCmd) {
-                $SeldonBin = $PathCmd.Source
-            }
-        }
-
-        if (-not $SeldonBin) {
-            Write-Host "`n  -> Skipping local CI receipt generation (seldon binary not found)." -ForegroundColor Gray
-        } else {
-            Write-Host "`n[Receipt] Recording local CI receipt via seldon ci receipt..." -ForegroundColor Yellow
-            $isCleanTree = $false
-            $statusOutput = & git -C $RootDir status --porcelain 2>$null
-            if ($LASTEXITCODE -eq 0 -and [string]::IsNullOrWhiteSpace($statusOutput)) {
-                $isCleanTree = $true
-            }
-
-            $GatePairs = ($GateResults.GetEnumerator() | ForEach-Object { "$($_.Key)=$($_.Value)" }) -join ","
-            $ReceiptArgs = @("ci", "receipt", "--dir", $RootDir, "--script-path", "scripts/ci-local.ps1", "--gates", $GatePairs)
-            & $SeldonBin @ReceiptArgs
-            $receiptExitCode = $LASTEXITCODE
-            if ($receiptExitCode -ne 0) {
-                if ($isCleanTree) {
-                    throw "Gate Failure: seldon ci receipt failed with exit code $receiptExitCode on clean working tree."
-                }
-                Write-Host "  -> Note: seldon ci receipt skipped or returned non-zero (working tree may have uncommitted changes)." -ForegroundColor Yellow
-            } else {
-                Write-Host "  -> Local CI receipt written to .ci-local/receipt.json." -ForegroundColor Green
-            }
-        }
-    }
-
     $global:LASTEXITCODE = 0
     exit 0
+} catch {
+    if ($IsCI -and $script:InGroup) {
+        Write-Host "::endgroup::"
+        $script:InGroup = $false
+    }
+    Write-GateSummary
+    Write-Host "`n====================================================" -ForegroundColor Red
+    Write-Host " CI FAILED: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "====================================================" -ForegroundColor Red
+    exit 1
 } finally {
     if (Test-Path $prodLogFile) { Remove-Item $prodLogFile -Force -ErrorAction SilentlyContinue }
     if (Test-Path $fixtureLogFile) { Remove-Item $fixtureLogFile -Force -ErrorAction SilentlyContinue }
