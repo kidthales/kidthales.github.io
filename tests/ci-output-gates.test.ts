@@ -910,10 +910,14 @@ test('ci-local.ps1 execution: -Gate0Only emits structured Schema v2 Gate Summary
     return;
   }
 
+  const cleanEnv: NodeJS.ProcessEnv = { ...process.env };
+  delete cleanEnv.GITHUB_ACTIONS;
+
   const scriptPath = path.join(process.cwd(), 'scripts', 'ci-local.ps1');
   const res: SpawnSyncReturns<string> = spawnSync(pwsh, ['-NoProfile', '-File', scriptPath, '-Gate0Only'], {
     cwd: process.cwd(),
     encoding: 'utf8',
+    env: cleanEnv,
   });
 
   assert.equal(
@@ -940,6 +944,9 @@ test('ci-local.ps1 execution: gate failure emits structured Gate Summary in catc
     return;
   }
 
+  const cleanEnv: NodeJS.ProcessEnv = { ...process.env };
+  delete cleanEnv.GITHUB_ACTIONS;
+
   const scriptPath = path.join(process.cwd(), 'scripts', 'ci-local.ps1');
   // Pass tests/fixtures as WorkflowsPath which has no workflow yml files, forcing Gate 0 failure
   const res: SpawnSyncReturns<string> = spawnSync(
@@ -948,6 +955,7 @@ test('ci-local.ps1 execution: gate failure emits structured Gate Summary in catc
     {
       cwd: process.cwd(),
       encoding: 'utf8',
+      env: cleanEnv,
     }
   );
 

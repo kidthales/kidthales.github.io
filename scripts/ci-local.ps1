@@ -83,7 +83,7 @@ function Write-GateSummary {
 }
 
 # Fail-closed guard for -CI mode: reject skip or partial flags immediately
-if ($IsCI) {
+if ($CI) {
     $rejectedFlags = @()
     if ($Quick) { $rejectedFlags += "-Quick" }
     if ($Gate0Only) { $rejectedFlags += "-Gate0Only" }
