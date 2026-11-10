@@ -586,3 +586,51 @@ jobs:
     `Expected verify permissions contents: read requirement, got: ${errors2.join(', ')}`
   );
 });
+
+test('workflow-contract: permits timeout-minutes: 30 at upper boundary', () => {
+  const boundaryYaml = `
+name: Test
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - run: echo "at 30 limit"
+`;
+  const errors = validateWorkflowContent(boundaryYaml, 'test.yml');
+  assert.deepEqual(errors, []);
+});
+
+test('workflow-contract: rejects boundary-violating timeout-minutes (31, 0, negative, non-integer)', () => {
+  const cases = [
+    { val: 31, desc: 'exceeds 30' },
+    { val: 0, desc: 'zero' },
+    { val: -5, desc: 'negative' },
+    { val: 12.5, desc: 'non-integer' },
+  ];
+
+  for (const c of cases) {
+    const yaml = `
+name: Test
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${c.val}
+    permissions:
+      contents: read
+    steps:
+      - run: echo "bad timeout"
+`;
+    const errors = validateWorkflowContent(yaml, 'test.yml');
+    assert.ok(
+      errors.some((e) => e.includes(`specifies invalid 'timeout-minutes: ${c.val}'`)),
+      `Expected invalid timeout-minutes error for ${c.desc} (${c.val}), got: ${errors.join(', ')}`
+    );
+  }
+});
