@@ -28,11 +28,12 @@ permissions:
   contents: read
 concurrency:
   group: \${{ github.workflow }}-\${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: \${{ github.workflow == 'CI' }}
 jobs:
   security:
     name: Security
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
       security-events: write
@@ -45,6 +46,9 @@ jobs:
   verify:
     name: Verify
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -60,6 +64,9 @@ jobs:
     needs: [security, verify]
     if: always()
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
     env:
       WEBHOOK_URL: \${{ secrets.DISCORD_CI_WEBHOOK }}
     steps:
@@ -426,6 +433,7 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
       pages: write
@@ -472,5 +480,109 @@ jobs:
   assert.ok(
     errors2.some((e) => e.includes("job 'deploy' requests elevated write privilege 'contents: write'")),
     `Expected deploy contents: write rejection, got: ${errors2.join(', ')}`
+  );
+});
+
+test('workflow-contract: rejects CI concurrency without caller-isolated cancel-in-progress', () => {
+  const yaml = `
+name: CI
+permissions:
+  contents: read
+concurrency:
+  group: \${{ github.workflow }}-\${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - run: ./scripts/ci-local.ps1 -CI
+`;
+  const errors = validateWorkflowContent(yaml, 'ci.yml');
+  assert.ok(
+    errors.some((e) => e.includes("CI concurrency must specify caller-isolated 'cancel-in-progress:")),
+    `Expected caller-isolated cancel-in-progress error, got: ${errors.join(', ')}`
+  );
+});
+
+test('workflow-contract: rejects step-executing job missing timeout-minutes or exceeding 30', () => {
+  const missingTimeout = `
+name: Test
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - run: echo "no timeout"
+`;
+  const errors1 = validateWorkflowContent(missingTimeout, 'test.yml');
+  assert.ok(
+    errors1.some((e) => e.includes("job 'test' must specify 'timeout-minutes'")),
+    `Expected missing timeout-minutes error, got: ${errors1.join(', ')}`
+  );
+
+  const excessiveTimeout = `
+name: Test
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - run: echo "too long"
+`;
+  const errors2 = validateWorkflowContent(excessiveTimeout, 'test.yml');
+  assert.ok(
+    errors2.some((e) => e.includes("job 'test' specifies invalid 'timeout-minutes: 45'")),
+    `Expected invalid timeout-minutes error, got: ${errors2.join(', ')}`
+  );
+});
+
+test('workflow-contract: rejects job missing explicit permissions or verify missing contents: read', () => {
+  const missingPerms = `
+name: Test
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - run: echo "no perms"
+`;
+  const errors1 = validateWorkflowContent(missingPerms, 'test.yml');
+  assert.ok(
+    errors1.some((e) => e.includes("job 'test' must declare explicit job-level permissions")),
+    `Expected missing job permissions error, got: ${errors1.join(', ')}`
+  );
+
+  const badVerifyPerms = `
+name: CI
+permissions:
+  contents: read
+concurrency:
+  group: \${{ github.workflow }}-\${{ github.ref }}
+  cancel-in-progress: \${{ github.workflow == 'CI' }}
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      issues: read
+    steps:
+      - run: ./scripts/ci-local.ps1 -CI
+`;
+  const errors2 = validateWorkflowContent(badVerifyPerms, 'ci.yml');
+  assert.ok(
+    errors2.some((e) => e.includes("job 'verify' must specify 'permissions: { contents: read }'")),
+    `Expected verify permissions contents: read requirement, got: ${errors2.join(', ')}`
   );
 });

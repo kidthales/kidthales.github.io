@@ -14,12 +14,13 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.workflow == 'CI' }}
 
 jobs:
   security:
     name: Security & Workflow Audits (Gitleaks & zizmor)
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     permissions:
       contents: read
       security-events: write
@@ -44,6 +45,9 @@ jobs:
   verify:
     name: Verify & Build
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -87,6 +91,7 @@ jobs:
     needs: [security, verify]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     permissions:
       contents: read
       pages: write
@@ -118,6 +123,7 @@ jobs:
     needs: [security, verify]
     if: always() && github.event_name != 'workflow_call' && github.workflow == 'CI'
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     permissions:
       contents: read
     env:

@@ -99,6 +99,20 @@ export function validateWorkflowContent(
           `${fileName}: CI concurrency group must be caller-isolated containing \${{ github.workflow }}-\${{ github.ref }}. Found: '${groupStr}'.`
         );
       }
+
+      const cancelInProgress =
+        typeof concurrency === 'object' && concurrency !== null
+          ? String(concurrency['cancel-in-progress'] ?? '')
+          : '';
+      const normalizedCancel = cancelInProgress.replace(/\s+/g, ' ').trim();
+      if (
+        normalizedCancel !== "${{ github.workflow == 'CI' }}" &&
+        normalizedCancel !== '${{ github.workflow == "CI" }}'
+      ) {
+        errors.push(
+          `${fileName}: CI concurrency must specify caller-isolated 'cancel-in-progress: \${{ github.workflow == \\'CI\\' }}'. Found: '${cancelInProgress}'.`
+        );
+      }
     }
   }
 
@@ -111,9 +125,22 @@ export function validateWorkflowContent(
 
     // Job permissions check
     const jobPerms = job.permissions;
-    if (jobPerms === 'write-all') {
+    if (jobPerms === undefined || jobPerms === null) {
+      errors.push(
+        `${fileName}: job '${jobId}' must declare explicit job-level permissions (least-privilege, e.g. 'permissions: { contents: read }').`
+      );
+    } else if (jobPerms === 'write-all') {
       errors.push(`${fileName}: job '${jobId}' specifies 'permissions: write-all' which is forbidden.`);
     } else if (typeof jobPerms === 'object' && jobPerms !== null) {
+      if (
+        isCiWorkflow &&
+        (jobId === 'verify' || jobId === 'test-and-build') &&
+        jobPerms.contents !== 'read'
+      ) {
+        errors.push(
+          `${fileName}: job '${jobId}' must specify 'permissions: { contents: read }'. Found: ${JSON.stringify(jobPerms)}.`
+        );
+      }
       for (const [scope, level] of Object.entries(jobPerms)) {
         if (level === 'write') {
           // Security job security-events write and deploy job pages/id-token write are allowlisted
@@ -136,6 +163,23 @@ export function validateWorkflowContent(
         errors.push(`${fileName}: job '${jobId}' has no steps.`);
       }
       continue;
+    }
+
+    // Step-executing jobs must enforce timeout-minutes <= 30
+    const timeoutMinutes = job['timeout-minutes'];
+    if (timeoutMinutes === undefined || timeoutMinutes === null) {
+      errors.push(
+        `${fileName}: job '${jobId}' must specify 'timeout-minutes' (must be a positive integer <= 30).`
+      );
+    } else if (
+      typeof timeoutMinutes !== 'number' ||
+      !Number.isInteger(timeoutMinutes) ||
+      timeoutMinutes <= 0 ||
+      timeoutMinutes > 30
+    ) {
+      errors.push(
+        `${fileName}: job '${jobId}' specifies invalid 'timeout-minutes: ${timeoutMinutes}'. Must be a positive integer <= 30.`
+      );
     }
 
     let jobRunsCanonicalCi = false;
