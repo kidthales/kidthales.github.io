@@ -1,0 +1,51 @@
+---
+form: note
+kind: field_note
+title: The 3-Layer Rule and 3-Tier Skill System
+description: Why we partition agent context by scope and loading phase, how our byte and token caps derive from Antigravity runtime limits, and what we trade away.
+published_on: 2026-11-10
+---
+
+Flat instruction files rot quickly. As a codebase grows across repositories, a single `AGENTS.md` accumulates contradictory domain rules, verbose runbooks, and one-off postmortem scars until every turn pays a permanent tax in latency, diluted attention, and silent host truncation.
+
+We partition agent guidance along two orthogonal axes: **3 scope layers** (where an invariant applies) and **3 disclosure tiers** (when it enters context).
+
+## 1. The Two Axes
+
+| Axis | Level | Artifact / Path | Loading & Purpose |
+| :--- | :--- | :--- | :--- |
+| **Scope** | **Layer 1** | `plugins/*/rules/AGENTS.md` | Universal safety, git lifecycle, and polyglot pillars. |
+| **Scope** | **Layer 2** | `<silo>/.agents/rules/*.md` | Silo-specific invariants (OSS portfolio vs. game studio). |
+| **Scope** | **Layer 3** | `<repo>/.agents/rules/*.md` | Leaf-repo overrides (0 B on clean-room public repos). |
+| **Phase** | **Tier 1** | Rules + Skill Frontmatter | Always loaded; atomic rules (<= 3 lines) and YAML triggers. |
+| **Phase** | **Tier 2** | `skills/*/SKILL.md` | On demand ([progressive disclosure](https://antigravity.google/docs/skills)); domain workflows. |
+| **Phase** | **Tier 3** | `docs/`, `references/` | Explicit deep-dive lookup; schemas, flags, and runbooks. |
+
+## 2. Why Those Numbers?
+
+Google Antigravity's runtime ([Rules & Workflows](https://antigravity.google/docs/rules-workflows), `agy-customizations`) enforces two hard limits on workspace rules: a **24,000 B (24 KB) per-file cap** (above which files truncate on line boundaries) and a **20,000-token aggregate budget** (`defaultRulesBudget`, above which rules demote from inline text to file pointers).
+
+To fail fast in CI before the host truncates a line or demotes a rule, `seldon budget` enforces stricter thresholds (CRLF-normalized at 4 B/token):
+
+| Threshold | Limit | Upstream Anchor & Rationale |
+| :--- | :--- | :--- |
+| **Hard Ceiling** | 20,000 tokens (~80 KB) | **100% of `defaultRulesBudget`**. Counts Layers 1–3 *and* Skill frontmatter; breach fails CI (`ERROR`). |
+| **Comfort Budget** | 10,000 tokens (~40 KB) | **50% of `defaultRulesBudget`**. Gives a 2x multi-plugin safety margin (<5% of working context). |
+| **Rule File Cap** | 12,000 B (~3,000 tokens) | **50% of the 24 KB file cap**. Prevents line truncation and forces **net-zero entropy** (consolidate or evict). |
+| **Skill File Cap** | 8,000 B (~2,000 tokens) | **1/3 of the 24 KB file cap** (~200 lines). Fits one bounded read; pushes tables to Tier 3 `references/`. |
+| **Invariant Length** | <= 3 lines | Keeps tutorials out of Tier 1; non-predicates route to Tier 2 or Tier 3. |
+| **Doc Blob Guard** | 20,000 B (20 KB) | Flags embedded `data:image` base64 blobs in Tier 3 docs before they spike context on read. |
+
+In steady state, always-loaded context sits near ~5.9K tokens (~23.7 KB), while ~13.3K+ tokens (~53.1 KB) of domain workflows stay deferred on disk.
+
+## 3. Pros & Cons
+
+**Pros**
+- **Zero silent truncation or demotion**: Auditing at 50% of host limits guarantees rules are never clipped or demoted to path pointers.
+- **Bounded baseline burn**: Every turn pays only for active invariants and compact skill routing headers (~780 tokens across 9 skills).
+- **Higher adherence & clean-room repos**: Short Tier 1 predicates avoid attention dilution, and Layer 1/2 stay outside public leaf repos.
+
+**Cons**
+- **Activation misses**: Poorly phrased YAML `description` fields can cause an agent to skip Tier 2 guidance.
+- **Extra tool-call hop**: Reading a Tier 2 `SKILL.md` and Tier 3 reference costs 1–2 initial file reads on specialized tasks.
+- **Editorial friction**: Authors must classify guidance across Tiers 1–3 to pass `seldon budget --strict`.

@@ -142,3 +142,34 @@ test('validateDiagnosticsLogs fails if Contrast/AAA reports print into the astro
     result.errors.some((e) => e.includes('Forbidden Contrast/AAA report output in astro build log'))
   );
 });
+
+test('live diagnostics-allowlist.json passes populated words build and rejects unallowlisted directory warnings', () => {
+  const allowlistPath = path.resolve(
+    __dirname,
+    '..',
+    'scripts',
+    'gates',
+    'diagnostics-allowlist.json'
+  );
+  const entries = JSON.parse(fs.readFileSync(allowlistPath, 'utf8')) as AllowlistEntry[];
+
+  const populatedProdLog = [
+    '16:15:40 [content] Syncing content',
+    '16:15:40 [build] 16 page(s) built in 1.01s',
+    '16:15:40 [build] Complete!',
+  ].join('\n');
+
+  const cleanResult = validateDiagnosticsLogs([populatedProdLog], entries);
+  assert.strictEqual(cleanResult.ok, true);
+  assert.deepStrictEqual(cleanResult.errors, []);
+
+  const unexpectedWarnLog = [
+    '16:15:40 [content] Syncing content',
+    '16:15:40 [WARN] [glob-loader] No files found matching "**/*.md" in directory "src/content/works"',
+    '16:15:40 [build] Complete!',
+  ].join('\n');
+
+  const failResult = validateDiagnosticsLogs([unexpectedWarnLog], entries);
+  assert.strictEqual(failResult.ok, false);
+  assert.ok(failResult.errors.some((e) => e.includes('Unallowlisted [WARN] in astro build log')));
+});
