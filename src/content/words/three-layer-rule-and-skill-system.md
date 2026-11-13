@@ -14,12 +14,16 @@ We partition agent guidance along two orthogonal axes: **3 scope layers** (where
 
 | Axis | Level | Artifact / Path | Loading & Purpose |
 | :--- | :--- | :--- | :--- |
-| **Scope** | **Layer 1** | `plugins/*/rules/AGENTS.md` | Universal safety, git lifecycle, and polyglot pillars. |
-| **Scope** | **Layer 2** | `<silo>/.agents/rules/*.md` | Silo-specific invariants (OSS portfolio vs. game studio). |
-| **Scope** | **Layer 3** | `<repo>/.agents/rules/*.md` | Leaf-repo overrides (0 B on clean-room public repos). |
+| **Scope** | **Layer 1** | `plugins/*/rules/AGENTS.md`, `GEMINI.md` | Frontmatter-free `always_on` universal safety, git lifecycle, and polyglot pillars (enforced by `seldon budget --strict`). |
+| **Scope** | **Layer 2** | `<silo>/.agents/rules/*.md` | Silo-specific invariants (`trigger:`-capable: `always_on` or Tier 2 on-demand). |
+| **Scope** | **Layer 3** | `<repo>/.agents/rules/*.md` | Leaf-repo `trigger:` rules (0 B on clean-room public repos). |
 | **Phase** | **Tier 1** | `always_on` Rules + `CustomizationFootprint` | Always loaded across two pools: `always_on` rules (<= 3 lines) vs. customization metadata (Skill frontmatter, custom subagents, MCP schemas, `.agents/{skills,plugins}.json`). |
-| **Phase** | **Tier 2** | `skills/*/SKILL.md` | On demand ([progressive disclosure](https://antigravity.google/docs/skills)); domain workflows. |
+| **Phase** | **Tier 2** | `skills/*/SKILL.md`, triggered rules | On demand ([progressive disclosure](https://antigravity.google/docs/skills)); skill bodies plus `trigger: model_decision`/`glob`/`manual` rules. |
 | **Phase** | **Tier 3** | `docs/`, `references/` | Explicit deep-dive lookup; schemas, flags, and runbooks. |
+
+Layer 1 `AGENTS.md` and `GEMINI.md` files do not support frontmatter and load unconditionally as `always_on` (enforced by `seldon budget --strict`). Layer 2 and Layer 3 `.agents/rules/*.md` files support YAML `trigger:` modes: `always_on` loads in Tier 1, whereas `model_decision`, `glob`, and `manual` defer to Tier 2 on-demand loading.
+
+Because Antigravity stops upward workspace discovery at a repository's `.git` boundary, clean-room public leaf repositories (`0 B` Layer 3) cannot inherit Layer 2 `.agents/rules/*.md` when opened alone. Authoring in a clean-room leaf repo requires a `[<hub>, <leaf>]` multi-root workspace paired with its silo hub (enforced by a `PreInvocation` guard) so the hub root supplies Layer 2 rules.
 
 ## 2. Why Those Numbers?
 
