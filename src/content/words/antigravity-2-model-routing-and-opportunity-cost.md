@@ -3,7 +3,7 @@ form: note
 kind: field_note
 title: Antigravity 2.0 Model Routing and Opportunity Cost
 description: Dated snapshot of Antigravity 2.0 cloud quota pools, host subagent tiers, local LAN offload, and per-model opportunity costs.
-draft: true
+published_on: 2026-11-13
 ---
 
 Treating every prompt as a flagship problem wastes weekly quota on boilerplate. Routing architecture or review to a lightweight tier trades catch-rate for cheap tokens and forces rework.
