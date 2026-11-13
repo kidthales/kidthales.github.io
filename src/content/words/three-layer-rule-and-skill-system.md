@@ -7,54 +7,54 @@ published_on: 2026-11-10
 errata:
   - on: 2026-11-13
     class: correction
-    note: Updated Antigravity 2.0 defaultRulesBudget scope (always_on rules vs. CustomizationFootprint), Layer 1 vs. Layer 2/3 trigger semantics, clean-room hub/leaf multi-root workspace pairing, steady-state token telemetry, and generalized private CLI references.
+    note: Aligned budgets, trigger modes, hub/leaf pairing, and telemetry with Antigravity 2.0; generalized CLI terms.
 ---
 
-Flat instruction files rot quickly. As a codebase grows across repositories, a single `AGENTS.md` accumulates contradictory domain rules, verbose runbooks, and one-off postmortem scars until every turn pays a permanent tax in latency, diluted attention, and silent host truncation.
+Flat instruction files rot quickly. A single `AGENTS.md` accumulates contradictory rules and runbooks until every turn pays in latency, diluted attention, and truncation.
 
-We partition agent guidance along two orthogonal axes: **3 scope layers** (where an invariant applies) and **3 disclosure tiers** (when it enters context).
+We partition guidance by **3 scope layers** (where) and **3 disclosure tiers** (when).
 
 ## 1. The Two Axes
 
 | Axis | Level | Artifact / Path | Loading & Purpose |
 | :--- | :--- | :--- | :--- |
-| **Scope** | **Layer 1** | `plugins/*/rules/AGENTS.md`, `GEMINI.md` | Frontmatter-free `always_on` universal safety, git lifecycle, and polyglot pillars. |
-| **Scope** | **Layer 2** | `<silo>/.agents/rules/*.md` | Silo-specific invariants (`trigger:`-capable: `always_on` or Tier 2 on-demand). |
-| **Scope** | **Layer 3** | `<repo>/.agents/rules/*.md` | Leaf-repo `trigger:` rules (0 B on clean-room public repos). |
-| **Phase** | **Tier 1** | `always_on` Rules + `CustomizationFootprint` | Always loaded across two pools: `always_on` rules (<= 3 lines) vs. customization metadata (Skill frontmatter, custom subagents, MCP schemas, `.agents/{skills,plugins}.json`). |
-| **Phase** | **Tier 2** | `skills/*/SKILL.md`, triggered rules | On demand ([progressive disclosure](https://antigravity.google/docs/skills)); skill bodies plus `trigger: model_decision`/`glob`/`manual` rules. |
-| **Phase** | **Tier 3** | `docs/`, `references/` | Explicit deep-dive lookup; schemas, flags, and runbooks. |
+| **Scope** | **Layer 1** | `plugins/*/rules/AGENTS.md`, `GEMINI.md` | Universal safety, git lifecycle, and polyglot pillars. |
+| **Scope** | **Layer 2** | `<silo>/.agents/rules/*.md` | Silo invariants (`always_on` or Tier 2). |
+| **Scope** | **Layer 3** | `<repo>/.agents/rules/*.md` | Leaf overrides (`0 B` on clean-room repos). |
+| **Phase** | **Tier 1** | `always_on` + `CustomizationFootprint` | Always loaded: rules (<= 3 lines) and metadata. |
+| **Phase** | **Tier 2** | `skills/*/SKILL.md`, triggered rules | On demand ([progressive disclosure](https://antigravity.google/docs/skills)). |
+| **Phase** | **Tier 3** | `docs/`, `references/` | Explicit lookup; schemas and runbooks. |
 
-Layer 1 `AGENTS.md` and `GEMINI.md` files do not support frontmatter and load unconditionally as `always_on` (enforced in strict mode by our CI budget linter). Layer 2 and Layer 3 `.agents/rules/*.md` files support YAML `trigger:` modes: `always_on` loads in Tier 1, whereas `model_decision`, `glob`, and `manual` defer to Tier 2 on-demand loading.
+Layer 1 `AGENTS.md`/`GEMINI.md` are frontmatter-free `always_on` (strict-mode CI enforced). Layer 2–3 `.agents/rules/*.md` support `trigger:` modes: `always_on` (Tier 1) or `model_decision`/`glob`/`manual` (Tier 2).
 
-Because Antigravity stops upward workspace discovery at a repository's `.git` boundary, clean-room public leaf repositories (`0 B` Layer 3) cannot inherit Layer 2 `.agents/rules/*.md` when opened alone. Authoring in a clean-room leaf repo requires a `[<hub>, <leaf>]` multi-root workspace paired with its silo hub (enforced by a workspace pre-invocation guard) so the hub root supplies Layer 2 rules.
+Because discovery stops at `.git`, clean-room leaf repos (`0 B` Layer 3) cannot inherit Layer 2 rules alone; authoring requires a `[<hub>, <leaf>]` multi-root workspace with the silo hub (enforced by a workspace pre-invocation guard).
 
 ## 2. Why Those Numbers?
 
-Google Antigravity's runtime ([Rules & Workflows](https://antigravity.google/docs/rules-workflows), `agy-customizations`) enforces two hard limits on workspace rules: a **24,000 B (24 KB) per-file cap** (above which files truncate on line boundaries) and a **20,000-token aggregate budget** (`defaultRulesBudget`, above which rules demote from inline text to file pointers). In Antigravity 2.0, `defaultRulesBudget` covers **`always_on` rules across Layers 1–3** strictly; Skill frontmatter, custom subagents, MCP schemas, and `.agents/{skills,plugins}.json` manifests occupy a separate `CustomizationFootprint` pool.
+Antigravity ([Rules & Workflows](https://antigravity.google/docs/rules-workflows), `agy-customizations`) enforces a **24,000 B (24 KB) per-file cap** (line truncation) and a **20,000-token `defaultRulesBudget`** (pointer demotion). In Antigravity 2.0, `defaultRulesBudget` covers **`always_on` rules (Layers 1–3)** strictly; Skill frontmatter, custom subagents, MCP schemas, and `.agents/{skills,plugins}.json` manifests occupy a separate `CustomizationFootprint` pool.
 
-To fail fast in CI before the host truncates a line or demotes a rule, our CI budget linter enforces stricter thresholds (CRLF-normalized at 4 B/token):
+Our CI budget linter enforces stricter thresholds (CRLF-normalized, 4 B/token):
 
 | Threshold | Limit | Upstream Anchor & Rationale |
 | :--- | :--- | :--- |
-| **Hard Ceiling** | 20,000 tokens (~80 KB) | **100% of `defaultRulesBudget`**. Counts `always_on` rules across Layers 1–3 only; breach fails CI (`ERROR`). |
-| **Comfort Budget** | 10,000 tokens (~40 KB) | **50% of `defaultRulesBudget`**. Gives a 2x multi-plugin safety margin (<5% of working context). |
-| **Customization Footprint** | Telemetry (separate pool) | Tracks Skill frontmatter, custom subagents, MCP schemas, and `.agents/{skills,plugins}.json` manifests outside `defaultRulesBudget`. |
-| **Rule File Cap** | 12,000 B (~3,000 tokens) | **50% of the 24 KB file cap**. Prevents line truncation and forces **net-zero entropy** (consolidate or evict). |
-| **Skill File Cap** | 8,000 B (~2,000 tokens) | **1/3 of the 24 KB file cap** (~200 lines). Fits one bounded read; pushes tables to Tier 3 `references/`. |
-| **Invariant Length** | <= 3 lines | Keeps tutorials out of Tier 1; non-predicates route to Tier 2 or Tier 3. |
-| **Doc Blob Guard** | 20,000 B (20 KB) | Flags embedded `data:image` base64 blobs in Tier 3 docs before they spike context on read. |
+| **Hard Ceiling** | 20,000 tokens (~80 KB) | **100% of `defaultRulesBudget`**, `always_on` Layers 1–3 only (`ERROR`). |
+| **Comfort Budget** | 10,000 tokens (~40 KB) | **50% of `defaultRulesBudget`** (<5% context). |
+| **Customization Footprint** | Telemetry | Tracks Skill frontmatter, subagents, MCP schemas, and `.agents/` manifests. |
+| **Rule File Cap** | 12,000 B (~3K tokens) | **50% of 24 KB cap**; prevents truncation, forces **net-zero entropy**. |
+| **Skill File Cap** | 8,000 B (~2K tokens) | **1/3 of 24 KB cap** (~200 lines); tables move to Tier 3. |
+| **Invariant Length** | <= 3 lines | Keeps tutorials in Tier 2/3. |
+| **Doc Blob Guard** | 20,000 B (20 KB) | Flags `data:image` base64 blobs in Tier 3 docs. |
 
-In steady state, `always_on` rules sit near ~5.1K tokens and the `CustomizationFootprint` pool near ~2.1K tokens (across 12 skills, 7 subagents, and 4 MCP servers), while ~15.8K tokens of on-demand skill bodies stay deferred on disk.
+In steady state, `always_on` rules sit near ~5.1K tokens and `CustomizationFootprint` near ~2.1K tokens (12 skills, 7 subagents, 4 MCP servers), with ~15.8K tokens of skill bodies on disk.
 
 ## 3. Pros & Cons
 
 **Pros**
-- **Zero silent truncation or demotion**: Auditing at 50% of host limits guarantees rules are never clipped or demoted to path pointers.
-- **Bounded baseline burn**: Every turn pays only for active invariants (~5.1K `always_on` rule tokens) and compact customization metadata (~2.1K tokens across 12 skills, 7 subagents, and 4 MCP servers).
-- **Higher adherence & clean-room repos**: Short Tier 1 predicates avoid attention dilution, and Layer 1/2 stay outside public leaf repos.
+- **Zero silent truncation or demotion**: 50% host-limit checks prevent clipping and demotion.
+- **Bounded baseline burn**: Turns load only `always_on` rules (~5.1K) and metadata (~2.1K across 12 skills, 7 subagents, 4 MCP servers).
+- **Higher adherence & clean-room repos**: Short Tier 1 predicates reduce dilution; Layers 1–2 stay outside public leaf repos.
 
 **Cons**
-- **Activation misses**: Poorly phrased YAML `description` fields can cause an agent to skip Tier 2 guidance.
-- **Extra tool-call hop**: Reading a Tier 2 `SKILL.md` and Tier 3 reference costs 1–2 initial file reads on specialized tasks.
-- **Editorial friction**: Authors must classify guidance across Tiers 1–3 to pass strict CI budget checks.
+- **Activation misses**: Weak `description` fields can miss Tier 2 skills.
+- **Extra tool-call hop**: Reading Tier 2/3 files adds 1–2 reads.
+- **Editorial friction**: Classifying rules across Tiers 1–3 for strict CI checks.
