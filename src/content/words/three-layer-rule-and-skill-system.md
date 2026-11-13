@@ -4,6 +4,10 @@ kind: field_note
 title: The 3-Layer Rule and 3-Tier Skill System
 description: Why we partition agent context by scope and loading phase, how our byte and token caps derive from Antigravity runtime limits, and what we trade away.
 published_on: 2026-11-10
+errata:
+  - on: 2026-11-13
+    class: correction
+    note: Updated Antigravity 2.0 defaultRulesBudget scope (always_on rules vs. CustomizationFootprint), Layer 1 vs. Layer 2/3 trigger semantics, clean-room hub/leaf multi-root workspace pairing, and steady-state token telemetry.
 ---
 
 Flat instruction files rot quickly. As a codebase grows across repositories, a single `AGENTS.md` accumulates contradictory domain rules, verbose runbooks, and one-off postmortem scars until every turn pays a permanent tax in latency, diluted attention, and silent host truncation.
@@ -41,13 +45,13 @@ To fail fast in CI before the host truncates a line or demotes a rule, `seldon b
 | **Invariant Length** | <= 3 lines | Keeps tutorials out of Tier 1; non-predicates route to Tier 2 or Tier 3. |
 | **Doc Blob Guard** | 20,000 B (20 KB) | Flags embedded `data:image` base64 blobs in Tier 3 docs before they spike context on read. |
 
-In steady state, always-loaded context sits near ~5.9K tokens (~23.7 KB), while ~13.3K+ tokens (~53.1 KB) of domain workflows stay deferred on disk.
+In steady state, `always_on` rules sit near ~5.1K tokens and the `CustomizationFootprint` pool near ~2.1K tokens (across 12 skills, 7 subagents, and 4 MCP servers), while ~15.8K tokens of on-demand skill bodies stay deferred on disk.
 
 ## 3. Pros & Cons
 
 **Pros**
 - **Zero silent truncation or demotion**: Auditing at 50% of host limits guarantees rules are never clipped or demoted to path pointers.
-- **Bounded baseline burn**: Every turn pays only for active invariants and compact skill routing headers (~780 tokens across 9 skills).
+- **Bounded baseline burn**: Every turn pays only for active invariants (~5.1K `always_on` rule tokens) and compact customization metadata (~2.1K tokens across 12 skills, 7 subagents, and 4 MCP servers).
 - **Higher adherence & clean-room repos**: Short Tier 1 predicates avoid attention dilution, and Layer 1/2 stay outside public leaf repos.
 
 **Cons**
