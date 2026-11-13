@@ -17,20 +17,21 @@ We partition agent guidance along two orthogonal axes: **3 scope layers** (where
 | **Scope** | **Layer 1** | `plugins/*/rules/AGENTS.md` | Universal safety, git lifecycle, and polyglot pillars. |
 | **Scope** | **Layer 2** | `<silo>/.agents/rules/*.md` | Silo-specific invariants (OSS portfolio vs. game studio). |
 | **Scope** | **Layer 3** | `<repo>/.agents/rules/*.md` | Leaf-repo overrides (0 B on clean-room public repos). |
-| **Phase** | **Tier 1** | Rules + Skill Frontmatter | Always loaded; atomic rules (<= 3 lines) and YAML triggers. |
+| **Phase** | **Tier 1** | `always_on` Rules + `CustomizationFootprint` | Always loaded across two pools: `always_on` rules (<= 3 lines) vs. customization metadata (Skill frontmatter, custom subagents, MCP schemas, `.agents/{skills,plugins}.json`). |
 | **Phase** | **Tier 2** | `skills/*/SKILL.md` | On demand ([progressive disclosure](https://antigravity.google/docs/skills)); domain workflows. |
 | **Phase** | **Tier 3** | `docs/`, `references/` | Explicit deep-dive lookup; schemas, flags, and runbooks. |
 
 ## 2. Why Those Numbers?
 
-Google Antigravity's runtime ([Rules & Workflows](https://antigravity.google/docs/rules-workflows), `agy-customizations`) enforces two hard limits on workspace rules: a **24,000 B (24 KB) per-file cap** (above which files truncate on line boundaries) and a **20,000-token aggregate budget** (`defaultRulesBudget`, above which rules demote from inline text to file pointers).
+Google Antigravity's runtime ([Rules & Workflows](https://antigravity.google/docs/rules-workflows), `agy-customizations`) enforces two hard limits on workspace rules: a **24,000 B (24 KB) per-file cap** (above which files truncate on line boundaries) and a **20,000-token aggregate budget** (`defaultRulesBudget`, above which rules demote from inline text to file pointers). In Antigravity 2.0, `defaultRulesBudget` covers **`always_on` rules across Layers 1–3** strictly; Skill frontmatter, custom subagents, MCP schemas, and `.agents/{skills,plugins}.json` manifests occupy a separate `CustomizationFootprint` pool.
 
 To fail fast in CI before the host truncates a line or demotes a rule, `seldon budget` enforces stricter thresholds (CRLF-normalized at 4 B/token):
 
 | Threshold | Limit | Upstream Anchor & Rationale |
 | :--- | :--- | :--- |
-| **Hard Ceiling** | 20,000 tokens (~80 KB) | **100% of `defaultRulesBudget`**. Counts Layers 1–3 *and* Skill frontmatter; breach fails CI (`ERROR`). |
+| **Hard Ceiling** | 20,000 tokens (~80 KB) | **100% of `defaultRulesBudget`**. Counts `always_on` rules across Layers 1–3 only; breach fails CI (`ERROR`). |
 | **Comfort Budget** | 10,000 tokens (~40 KB) | **50% of `defaultRulesBudget`**. Gives a 2x multi-plugin safety margin (<5% of working context). |
+| **Customization Footprint** | Telemetry (separate pool) | Tracks Skill frontmatter, custom subagents, MCP schemas, and `.agents/{skills,plugins}.json` manifests outside `defaultRulesBudget`. |
 | **Rule File Cap** | 12,000 B (~3,000 tokens) | **50% of the 24 KB file cap**. Prevents line truncation and forces **net-zero entropy** (consolidate or evict). |
 | **Skill File Cap** | 8,000 B (~2,000 tokens) | **1/3 of the 24 KB file cap** (~200 lines). Fits one bounded read; pushes tables to Tier 3 `references/`. |
 | **Invariant Length** | <= 3 lines | Keeps tutorials out of Tier 1; non-predicates route to Tier 2 or Tier 3. |
