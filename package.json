@@ -18,7 +18,7 @@
     "@fontsource-variable/atkinson-hyperlegible-mono": "5.3.0",
     "@fontsource-variable/atkinson-hyperlegible-next": "5.3.0",
     "@kidthales/picotol": "0.7.0",
-    "astro": "7.4.4"
+    "astro": "7.4.7"
   },
   "devDependencies": {
     "@astrojs/check": "0.9.12",
