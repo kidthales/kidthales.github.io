@@ -3,7 +3,7 @@ form: note
 kind: field_note
 title: Left-Hand Side Planning in the Software Foundry
 description: Partitioning LHS problem modeling, model tiers, artifacts, and interview depth across three foundry intake tracks.
-draft: true
+published_on: 2026-11-15
 ---
 
 Skipping problem-space modeling turns codebases into accidental data models. Running full architectural ceremonies on every dependency bump or one-line fix stalls delivery.
