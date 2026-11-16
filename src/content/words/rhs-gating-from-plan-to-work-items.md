@@ -42,8 +42,8 @@ Filtering, risk floors, and queue ordering separate across four label axes and b
 | :--- | :--- | :--- |
 | **Type / Kind** | `feat`, `fix`, `chore`, `docs`, `sec`, `epic` | Classifies work and triggers `sec` risk floors. |
 | **Complexity** | `c(low)`, `c(medium)`, `c(high)`, `c(very high)`, `c:pinned` | Picks `2-part` vs. `4-part` spec, model tier, and audit gate. |
-| **Priority** | `p0`–`p3` | Orders `Ready`; `P0`/`P1` force a `c(high)` floor. |
-| **Lifecycle** | `backlog`, `ready`, `in progress`, `in review`, `in qa`, `blocked`, `on-hold`, `done` | Tracks state transitions via tracker commands only. |
+| **Priority** | `p0`–`p3` (board `P0`–`P3`) | Orders `Ready`; `P0`/`P1` force a `c(high)` floor. |
+| **Lifecycle** | `backlog`, `ready`, `in progress`, `in review`, `in qa`, `blocked`, `on hold`, `done` | Tracks state transitions via tracker commands only. |
 
 ## 3. Pros & Cons
 
