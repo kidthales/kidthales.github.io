@@ -2,13 +2,13 @@
 form: note
 kind: field_note
 title: "Right-Hand Side Execution: Gates, Clean-Room Audits, and CI Receipts"
-description: Enforcing separation of powers in RHS execution via operator hold/trunk gates, single-agent branch checkpoints, clean-room falsification bundles, and runner-sealed CI receipts.
+description: Enforcing separation of powers in RHS execution via operator gates, single-agent checkpoints, clean-room audits, and sealed CI receipts.
 draft: true
 ---
 
 An agent that writes code, reviews its own diff, and asserts its own CI pass optimizes for plausibility over truth—dumping subtle defects onto human review.
 
-During **Right-Hand Side (RHS)** execution, we enforce **separation of powers**: the implementing agent proposes and checkpoints; isolated auditors falsify; runner-sealed receipts attest; the human operator governs intent and trunk promotion.
+During **Right-Hand Side (RHS)** execution, we enforce **separation of powers**: the authoring agent proposes and checkpoints; isolated auditors falsify; sealed receipts attest; the operator governs intent and trunk merges.
 
 ## 1. Operator Gates & Single-Agent Accountability
 
@@ -21,7 +21,7 @@ Every branch belongs to one authoring session and pauses at explicit human bound
 | **Sub-Issue Merge** | Verified sub-issues squash-merge to parent Epic branch and advance to `In QA`. | Owning agent |
 | **Trunk & `Done` Gates** | Trunk (`main`) merges and `In QA -> Done` closures require `--operator-approved`. | Operator only |
 
-Single-agent branch ownership prevents overlapping edits and keeps every commit, model tier, and checkbox progression traceable. During development, commits run only targeted unit tests; full CI suites wait for clean-tree verification to avoid dirty-tree stalls and wasted runs.
+Single-agent branch ownership prevents conflicting edits and keeps commits, model tiers, and checkboxes traceable. Checkpoints run targeted unit tests only; full CI waits for clean-tree verification to avoid stalls and wasted runs.
 
 ## 2. Clean-Room Audits & Runner-Sealed CI Receipts
 
@@ -35,24 +35,24 @@ Verification scales with blast radius while blocking self-approval and forged lo
 
 ### The Absolute Authoring Boundary
 
-For `High+`, Epics, bare trunk PRs, and diff-escalated changes, a bundler emits a self-contained falsification packet:
-- A `60/40` test-prioritized diff excluding lockfiles and generated noise.
-- Deduplicated prior review rounds paired with the issue MVP spec and guarded-path escalations.
+For `High+`, Epics, trunk PRs, and guarded-path diffs, a bundler emits a falsification packet:
+- A `60/40` test-prioritized diff omitting lockfiles and generated noise.
+- Deduplicated prior reviews paired with the issue MVP spec and guarded-path flags.
 
-Once the bundle emits, the **authoring session halts**. An isolated clean-room session with zero shared trajectory verifies `AuthorModel != ReviewerModel` (barring down-tiering and weak or dynamic router models) and records `PASS`, `REVISE`, or `BLOCK` against the head SHA before undrafting for operator review.
+Once emitted, the **authoring session halts**. An isolated clean-room session with zero shared trajectory enforces `AuthorModel != ReviewerModel` (no down-tiering, weak, or router models) and records `PASS`, `REVISE`, or `BLOCK` on the head SHA before undrafting.
 
 ### Tamper-Evident CI Attestation
 
-Passing `--local-ci` without a sealed receipt is rejected. The CI runner executes on a clean tree (`dirty: 0`), captures the full execution log, confirms every declared gate is `pass` or allowlisted `not-applicable`, and hashes the transcript into a Schema v2 receipt bound to the head SHA.
+Passing `--local-ci` without a sealed receipt fails immediately. The runner executes on `dirty: 0`, captures the full log, verifies every gate is `pass` or allowlisted `not-applicable`, and hashes the transcript into a SHA-bound Schema v2 receipt.
 
 ## 3. Pros & Cons
 
 **Pros**
-- **Protected review attention**: Clean-room falsification and SHA-bound CI receipts catch plausible-looking defects before trunk review.
-- **Crisp accountability**: One-agent branches and 1:1 checkbox commits make progress and regressions trivial to trace.
-- **Non-forgable local CI**: Clean-tree execution and transcript-hash receipts prevent rubber-stamping skipped or partial suites.
+- **Protected review attention**: Clean-room falsification and SHA-bound CI receipts catch plausible defects before trunk review.
+- **Crisp accountability**: Single-agent branches and 1:1 checkbox commits make progress and regressions easy to trace.
+- **Unforgeable local CI**: Clean-tree runs and transcript-hash receipts block rubber-stamped or partial suites.
 
 **Cons**
-- **Handoff latency**: Stopping at the Branch Hold Gate and Absolute Authoring Boundary adds explicit operator and session turns.
+- **Handoff latency**: Stopping at Branch Hold and Authoring Boundary gates adds explicit operator and session turns.
 - **Audit quota burn**: Clean-room `AuthorModel != ReviewerModel` pairing spends extra frontier capacity on `High+` and trunk PRs.
-- **Strict tree hygiene**: Sealing receipts on `dirty: 0` rejects runs whenever untracked files or unstaged edits remain.
+- **Strict tree hygiene**: Sealing receipts on `dirty: 0` rejects runs whenever untracked or unstaged files remain.
