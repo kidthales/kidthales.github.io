@@ -3,7 +3,7 @@ form: note
 kind: field_note
 title: "Right-Hand Side Gating: From Plan to Work Items"
 description: Compiling LHS plans into bounded RHS work items via risk floors, topologies, a four-checkbox cap, and orthogonal labels.
-draft: true
+published_on: 2026-11-17
 ---
 
 Uncapped issues grow into multi-week branches that outlast review windows; underspecified security work skips baseline invariants.
