@@ -3,7 +3,7 @@ form: note
 kind: field_note
 title: "Right-Hand Side Execution: Gates, Clean-Room Audits, and CI Receipts"
 description: Separation of powers in RHS execution via operator gates, atomic checkpoints, clean-room audits, and sealed CI receipts.
-draft: true
+published_on: 2026-11-19
 ---
 
 Self-reviewing agents optimize for plausibility over truth, dumping subtle defects onto human review.
